@@ -15,7 +15,7 @@ const mockStats = {
   activeListings: 8,
   totalViews: 3456,
   totalInquiries: 89,
-  membership: "silver" as const,
+  membership: "silver" as "silver" | "gold",
 }
 
 const mockListings = [

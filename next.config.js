@@ -1,9 +1,12 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  output: "export",
+  trailingSlash: true,
+  basePath: "/Metal-Hub",
+  assetPrefix: "/Metal-Hub/",
   images: {
-    domains: ['localhost'],
+    unoptimized: true,
   },
 }
 
-module.exports = nextConfig
-
+module.exports = nextConfig;
