@@ -1,0 +1,345 @@
+// Prisma Schema for MetalHub Marketplace
+// PostgreSQL Database
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// 1. USERS (Authentication Core)
+// ============================================
+model User {
+  id            String   @id @default(uuid())
+  email         String?  @unique
+  phone         String?  @unique
+  passwordHash  String?  @map("password_hash")
+  role          UserRole @default(BUYER)
+  emailVerified Boolean  @default(false) @map("email_verified")
+  phoneVerified Boolean  @default(false) @map("phone_verified")
+  status        UserStatus @default(ACTIVE)
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  profile       Profile?
+  memberships   Membership[]
+  listings      Listing[] @relation("SellerListings")
+  chatsAsBuyer  Chat[] @relation("BuyerChats")
+  chatsAsSeller Chat[] @relation("SellerChats")
+  messages      Message[]
+  offers         Offer[]
+  payments       Payment[]
+  loginActivities LoginActivity[]
+  adminLogs     AdminLog[]
+  sentOffers     Offer[] @relation("BuyerOffers")
+
+  @@index([email])
+  @@index([phone])
+  @@index([role])
+  @@index([status])
+  @@map("users")
+}
+
+enum UserRole {
+  BUYER
+  SELLER
+  ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  BANNED
+}
+
+// ============================================
+// 2. PROFILES (User Details)
+// ============================================
+model Profile {
+  id          String   @id @default(uuid())
+  userId      String   @unique @map("user_id")
+  fullName    String?  @map("full_name")
+  companyName String?  @map("company_name")
+  location    Json?    // { city, state, country }
+  bio         String?
+  logoUrl     String?  @map("logo_url")
+  kycStatus   KycStatus @default(PENDING) @map("kyc_status")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("profiles")
+}
+
+enum KycStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+// ============================================
+// 3. MEMBERSHIPS (Plans & Access Control)
+// ============================================
+model Membership {
+  id        String         @id @default(uuid())
+  userId    String         @map("user_id")
+  plan      MembershipPlan
+  startDate DateTime       @default(now()) @map("start_date")
+  endDate   DateTime?      @map("end_date")
+  status    MembershipStatus @default(ACTIVE)
+  createdAt DateTime       @default(now()) @map("created_at")
+  updatedAt DateTime       @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
+  @@index([plan])
+  @@map("memberships")
+}
+
+enum MembershipPlan {
+  FREE
+  SILVER
+  GOLD
+}
+
+enum MembershipStatus {
+  ACTIVE
+  EXPIRED
+  CANCELLED
+}
+
+// ============================================
+// 4. LISTINGS (Metal Products)
+// ============================================
+model Listing {
+  id           String        @id @default(uuid())
+  sellerId     String        @map("seller_id")
+  title        String
+  description  String
+  metalType    MetalType     @map("metal_type")
+  grade        String?
+  price        Decimal       @db.Decimal(12, 2)
+  isNegotiable Boolean       @default(false) @map("is_negotiable")
+  quantity     Decimal       @db.Decimal(12, 2)
+  unit         String        @default("MT")
+  location     Json          // { city, state, country }
+  status       ListingStatus @default(PENDING)
+  isFeatured   Boolean       @default(false) @map("is_featured")
+  featuredUntil DateTime?    @map("featured_until")
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
+  expiresAt    DateTime?     @map("expires_at")
+
+  // Relations
+  seller       User          @relation("SellerListings", fields: [sellerId], references: [id], onDelete: Cascade)
+  images       ListingImage[]
+  chats        Chat[]
+  offers       Offer[]
+
+  @@index([sellerId])
+  @@index([metalType])
+  @@index([status])
+  @@index([isFeatured])
+  @@index([createdAt])
+  @@map("listings")
+}
+
+enum MetalType {
+  STEEL
+  IRON
+  ALUMINIUM
+  COPPER
+  BRASS
+  STAINLESS_STEEL
+  OTHER
+}
+
+enum ListingStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  SOLD
+  EXPIRED
+}
+
+// ============================================
+// 5. LISTING_IMAGES (Metadata Only)
+// ============================================
+model ListingImage {
+  id         String   @id @default(uuid())
+  listingId  String   @map("listing_id")
+  imageUrl   String   @map("image_url")
+  mlVerified Boolean  @default(false) @map("ml_verified")
+  mlScore    Float?   @map("ml_score")
+  uploadedAt DateTime @default(now()) @map("uploaded_at")
+
+  listing Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@index([listingId])
+  @@map("listing_images")
+}
+
+// ============================================
+// 6. CHATS (Buyer ↔ Seller Conversations)
+// ============================================
+model Chat {
+  id            String    @id @default(uuid())
+  listingId     String    @map("listing_id")
+  buyerId       String    @map("buyer_id")
+  sellerId      String    @map("seller_id")
+  lastMessageAt DateTime? @map("last_message_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  listing Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  buyer   User    @relation("BuyerChats", fields: [buyerId], references: [id], onDelete: Cascade)
+  seller  User    @relation("SellerChats", fields: [sellerId], references: [id], onDelete: Cascade)
+  messages Message[]
+
+  @@unique([listingId, buyerId])
+  @@index([buyerId])
+  @@index([sellerId])
+  @@index([listingId])
+  @@map("chats")
+}
+
+// ============================================
+// 7. MESSAGES (Chat Messages)
+// ============================================
+model Message {
+  id        String   @id @default(uuid())
+  chatId    String   @map("chat_id")
+  senderId  String   @map("sender_id")
+  message   String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  chat   Chat @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  sender User @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([chatId])
+  @@index([senderId])
+  @@index([createdAt])
+  @@map("messages")
+}
+
+// ============================================
+// 8. OFFERS (Price Negotiation)
+// ============================================
+model Offer {
+  id        String      @id @default(uuid())
+  listingId String      @map("listing_id")
+  buyerId   String      @map("buyer_id")
+  offerPrice Decimal    @db.Decimal(12, 2) @map("offer_price")
+  status    OfferStatus @default(PENDING)
+  createdAt DateTime    @default(now()) @map("created_at")
+  updatedAt DateTime    @updatedAt @map("updated_at")
+
+  listing Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  buyer   User    @relation("BuyerOffers", fields: [buyerId], references: [id], onDelete: Cascade)
+
+  @@index([listingId])
+  @@index([buyerId])
+  @@index([status])
+  @@map("offers")
+}
+
+enum OfferStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  COUNTERED
+  EXPIRED
+}
+
+// ============================================
+// 9. PAYMENTS (Razorpay Transactions)
+// ============================================
+model Payment {
+  id               String        @id @default(uuid())
+  userId           String        @map("user_id")
+  razorpayOrderId String        @unique @map("razorpay_order_id")
+  razorpayPaymentId String?      @unique @map("razorpay_payment_id")
+  amount           Decimal       @db.Decimal(12, 2)
+  currency         String        @default("INR")
+  status           PaymentStatus @default(CREATED)
+  plan             MembershipPlan?
+  createdAt        DateTime      @default(now()) @map("created_at")
+  updatedAt        DateTime      @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([razorpayOrderId])
+  @@index([status])
+  @@map("payments")
+}
+
+enum PaymentStatus {
+  CREATED
+  SUCCESS
+  FAILED
+  REFUNDED
+}
+
+// ============================================
+// 10. RAZORPAY_EVENTS (Webhook Logs)
+// ============================================
+model RazorpayEvent {
+  id        String   @id @default(uuid())
+  eventType String   @map("event_type")
+  payload   Json
+  receivedAt DateTime @default(now()) @map("received_at")
+
+  @@index([eventType])
+  @@index([receivedAt])
+  @@map("razorpay_events")
+}
+
+// ============================================
+// 11. LOGIN_ACTIVITY (Security Tracking)
+// ============================================
+model LoginActivity {
+  id              String   @id @default(uuid())
+  userId          String?  @map("user_id")
+  ipAddress       String   @map("ip_address")
+  deviceFingerprint String? @map("device_fingerprint")
+  userAgent       String?  @map("user_agent")
+  success         Boolean  @default(false)
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([ipAddress])
+  @@index([deviceFingerprint])
+  @@index([createdAt])
+  @@map("login_activity")
+}
+
+// ============================================
+// 12. ADMIN_LOGS (Audit Trail)
+// ============================================
+model AdminLog {
+  id        String   @id @default(uuid())
+  adminId   String   @map("admin_id")
+  action    String
+  targetId  String?  @map("target_id")
+  metadata  Json?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  admin User @relation(fields: [adminId], references: [id], onDelete: Cascade)
+
+  @@index([adminId])
+  @@index([action])
+  @@index([createdAt])
+  @@map("admin_logs")
+}
+
