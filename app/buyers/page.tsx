@@ -10,17 +10,16 @@ export const generateMetadata = ({
   searchParams: Record<string, string | string[] | undefined>
 }) => {
   return buildListingsMetadata({
-    mode: "directory",
+    mode: "buyers",
     searchParams,
-    pathname: "/listings",
+    pathname: "/buyers",
   })
 }
 
-export default function ListingsPage() {
+export default function BuyersPage() {
   return (
     <Suspense>
-      <ListingsSearchClient mode="directory" />
+      <ListingsSearchClient mode="buyers" />
     </Suspense>
   )
 }
-

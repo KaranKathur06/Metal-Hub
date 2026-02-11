@@ -8,7 +8,8 @@ import {
   IsArray,
   Min,
 } from 'class-validator';
-import { MetalType } from '@prisma/client';
+import { Transform } from 'class-transformer';
+import { ListingRole, ListingType, MembershipPlan, MetalType } from '@prisma/client';
 
 export class CreateListingDto {
   @IsString()
@@ -21,6 +22,33 @@ export class CreateListingDto {
 
   @IsEnum(MetalType)
   metalType: MetalType;
+
+  @IsEnum(ListingRole)
+  @IsOptional()
+  listingRole?: ListingRole;
+
+  @IsEnum(ListingType)
+  @IsOptional()
+  listingType?: ListingType;
+
+  @IsEnum(MembershipPlan)
+  @IsOptional()
+  premiumStatus?: MembershipPlan;
+
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  industries?: string[];
+
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  capabilities?: string[];
+
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  metals?: string[];
 
   @IsString()
   @IsOptional()
@@ -99,9 +127,48 @@ export class UpdateListingDto {
 }
 
 export class ListingQueryDto {
+  @IsString()
+  @IsOptional()
+  type?: 'buyers' | 'suppliers';
+
+  @Transform(({ value }) => (typeof value === 'string' ? value.split(',').filter(Boolean) : value))
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  country?: string[];
+
+  @IsString()
+  @IsOptional()
+  industry?: string;
+
+  @IsString()
+  @IsOptional()
+  capability?: string;
+
+  @IsString()
+  @IsOptional()
+  metal?: string;
+
   @IsEnum(MetalType)
   @IsOptional()
   metalType?: MetalType;
+
+  @IsEnum(MembershipPlan)
+  @IsOptional()
+  premium?: MembershipPlan;
+
+  @IsEnum(ListingType)
+  @IsOptional()
+  listingType?: ListingType;
+
+  @Transform(({ value }) => (typeof value === 'string' ? Number(value) : value))
+  @IsNumber()
+  @IsOptional()
+  dateRange?: number;
+
+  @IsString()
+  @IsOptional()
+  search?: string;
 
   @IsNumber()
   @IsOptional()

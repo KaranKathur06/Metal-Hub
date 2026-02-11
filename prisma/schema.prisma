@@ -125,6 +125,13 @@ model Listing {
   title        String
   description  String
   metalType    MetalType     @map("metal_type")
+  listingRole  ListingRole   @default(SUPPLIER) @map("listing_role")
+  listingType  ListingType   @default(MEMBERS) @map("listing_type")
+  premiumStatus MembershipPlan @default(FREE) @map("premium_status")
+  country      String?       @map("country")
+  industries   String[]      @default([]) @map("industries")
+  capabilities String[]      @default([]) @map("capabilities")
+  metals       String[]      @default([]) @map("metals")
   grade        String?
   price        Decimal       @db.Decimal(12, 2)
   isNegotiable Boolean       @default(false) @map("is_negotiable")
@@ -146,10 +153,27 @@ model Listing {
 
   @@index([sellerId])
   @@index([metalType])
+  @@index([listingRole])
+  @@index([listingType])
+  @@index([premiumStatus])
+  @@index([country])
+  @@index([industries], type: Gin)
+  @@index([capabilities], type: Gin)
+  @@index([metals], type: Gin)
   @@index([status])
   @@index([isFeatured])
   @@index([createdAt])
   @@map("listings")
+}
+
+enum ListingRole {
+  BUYER
+  SUPPLIER
+}
+
+enum ListingType {
+  BUY_LEADS
+  MEMBERS
 }
 
 enum MetalType {

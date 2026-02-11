@@ -1,10 +1,10 @@
 import Link from "next/link"
-import { Search, TrendingUp, Shield, Users } from "lucide-react"
+import { TrendingUp, Shield, Users } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { formatCurrency } from "@/lib/utils"
+import HeroRoleSearchClient from "@/components/home/HeroRoleSearchClient"
 
 // Mock data - replace with API calls
 const featuredCategories = [
@@ -15,6 +15,15 @@ const featuredCategories = [
   { id: 5, name: "Brass", count: 321, icon: "🔨" },
   { id: 6, name: "Stainless Steel", count: 567, icon: "🛠️" },
 ]
+
+const metalSlugMap: Record<string, string> = {
+  Steel: "steel",
+  Iron: "iron",
+  Aluminium: "aluminium",
+  Copper: "copper",
+  Brass: "brass",
+  "Stainless Steel": "stainless-steel",
+}
 
 const featuredListings = [
   {
@@ -82,20 +91,7 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* Search Bar */}
-        <div className="mx-auto mt-12 max-w-2xl">
-          <div className="relative">
-            <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              type="search"
-              placeholder="Search by metal type, location, or keyword..."
-              className="h-14 pl-12 text-base"
-            />
-            <Button className="absolute right-2 top-1/2 -translate-y-1/2">
-              Search
-            </Button>
-          </div>
-        </div>
+        <HeroRoleSearchClient />
       </section>
 
       {/* Featured Categories */}
@@ -106,7 +102,7 @@ export default function HomePage() {
             {featuredCategories.map((category) => (
               <Link
                 key={category.id}
-                href={`/listings?metalType=${category.name}`}
+                href={`/listings?metal=${metalSlugMap[category.name] || category.name.toLowerCase()}`}
                 className="group"
               >
                 <Card className="transition-all hover:shadow-lg">

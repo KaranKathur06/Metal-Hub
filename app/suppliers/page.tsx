@@ -10,17 +10,16 @@ export const generateMetadata = ({
   searchParams: Record<string, string | string[] | undefined>
 }) => {
   return buildListingsMetadata({
-    mode: "directory",
+    mode: "suppliers",
     searchParams,
-    pathname: "/listings",
+    pathname: "/suppliers",
   })
 }
 
-export default function ListingsPage() {
+export default function SuppliersPage() {
   return (
     <Suspense>
-      <ListingsSearchClient mode="directory" />
+      <ListingsSearchClient mode="suppliers" />
     </Suspense>
   )
 }
-

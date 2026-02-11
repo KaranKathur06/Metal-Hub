@@ -45,6 +45,13 @@ export class ListingsService {
         title: dto.title,
         description: dto.description,
         metalType: dto.metalType,
+        listingRole: dto.listingRole,
+        listingType: dto.listingType,
+        premiumStatus: dto.premiumStatus,
+        country: dto.location?.country,
+        industries: dto.industries ?? [],
+        capabilities: dto.capabilities ?? [],
+        metals: dto.metals ?? [],
         grade: dto.grade,
         price: dto.price,
         isNegotiable: dto.isNegotiable ?? false,
@@ -77,6 +84,49 @@ export class ListingsService {
     const where: any = {
       status: 'APPROVED', // Only show approved listings
     };
+
+    if (query.type === 'buyers') {
+      where.listingRole = 'BUYER';
+    } else if (query.type === 'suppliers') {
+      where.listingRole = 'SUPPLIER';
+    }
+
+    if (query.country && query.country.length > 0) {
+      where.country = { in: query.country };
+    }
+
+    if (query.industry) {
+      where.industries = { has: query.industry };
+    }
+
+    if (query.capability) {
+      where.capabilities = { has: query.capability };
+    }
+
+    if (query.metal) {
+      where.metals = { has: query.metal };
+    }
+
+    if (query.premium) {
+      where.premiumStatus = query.premium;
+    }
+
+    if (query.listingType) {
+      where.listingType = query.listingType;
+    }
+
+    if (query.dateRange) {
+      const cutoff = new Date();
+      cutoff.setDate(cutoff.getDate() - query.dateRange);
+      where.createdAt = { gte: cutoff };
+    }
+
+    if (query.search) {
+      where.OR = [
+        { title: { contains: query.search, mode: 'insensitive' } },
+        { description: { contains: query.search, mode: 'insensitive' } },
+      ];
+    }
 
     if (query.metalType) {
       where.metalType = query.metalType;
