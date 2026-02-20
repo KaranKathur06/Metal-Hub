@@ -95,16 +95,16 @@ export class ListingsService {
       where.country = { in: query.country };
     }
 
-    if (query.industry) {
-      where.industries = { has: query.industry };
+    if (query.industry && query.industry.length > 0) {
+      where.industries = { hasSome: query.industry };
     }
 
-    if (query.capability) {
-      where.capabilities = { has: query.capability };
+    if (query.capability && query.capability.length > 0) {
+      where.capabilities = { hasSome: query.capability };
     }
 
-    if (query.metal) {
-      where.metals = { has: query.metal };
+    if (query.metal && query.metal.length > 0) {
+      where.metals = { hasSome: query.metal };
     }
 
     if (query.premium) {

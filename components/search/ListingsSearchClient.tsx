@@ -46,7 +46,7 @@ const LISTING_TYPE_OPTIONS = [
 ] as const
 
 const DATE_RANGE_OPTIONS = [
-  { value: "", label: "Any time" },
+  { value: "any", label: "Any time" },
   { value: "3", label: "Last 3 days" },
   { value: "7", label: "Last 7 days" },
   { value: "30", label: "Last 30 days" },
@@ -121,9 +121,13 @@ export default function ListingsSearchClient({ mode }: { mode: PageMode }) {
   const premium = searchParams.get("premium") || ""
   const listingType = searchParams.get("listingType") || ""
   const dateRange = searchParams.get("dateRange") || ""
-  const industry = searchParams.get("industry") || ""
-  const capability = searchParams.get("capability") || ""
-  const metal = searchParams.get("metal") || ""
+  const industry = useMemo(() => parseCsv(searchParams.get("industry")), [searchParams])
+  const capability = useMemo(() => parseCsv(searchParams.get("capability")), [searchParams])
+  const metal = useMemo(() => parseCsv(searchParams.get("metal")), [searchParams])
+
+  const premiumSelectValue = premium || "any"
+  const listingTypeSelectValue = listingType || "any"
+  const dateRangeSelectValue = dateRange || "any"
 
   const sortBy = searchParams.get("sortBy") || "newest"
 
@@ -139,9 +143,10 @@ export default function ListingsSearchClient({ mode }: { mode: PageMode }) {
     if (premium) chips.push({ key: "premium", label: "Premium", value: premium })
     if (listingType) chips.push({ key: "listingType", label: "Type", value: listingType })
     if (dateRange) chips.push({ key: "dateRange", label: "Date", value: dateRange })
-    if (industry) chips.push({ key: "industry", label: "Industry", value: industry })
-    if (capability) chips.push({ key: "capability", label: "Capability", value: capability })
-    if (metal) chips.push({ key: "metal", label: "Metal", value: metal })
+    if (industry.length > 0) chips.push({ key: "industry", label: "Industry", value: industry.join(", ") })
+    if (capability.length > 0)
+      chips.push({ key: "capability", label: "Capability", value: capability.join(", ") })
+    if (metal.length > 0) chips.push({ key: "metal", label: "Metal", value: metal.join(", ") })
 
     return chips
   }, [search, country, premium, listingType, dateRange, industry, capability, metal])
@@ -173,6 +178,30 @@ export default function ListingsSearchClient({ mode }: { mode: PageMode }) {
 
     const next = Array.from(nextCountries)
     setParam("country", next.length > 0 ? toCsv(next) : "")
+  }
+
+  function toggleIndustry(value: string) {
+    const nextValues = new Set(industry)
+    if (nextValues.has(value)) nextValues.delete(value)
+    else nextValues.add(value)
+    const next = Array.from(nextValues)
+    setParam("industry", next.length > 0 ? toCsv(next) : "")
+  }
+
+  function toggleCapability(value: string) {
+    const nextValues = new Set(capability)
+    if (nextValues.has(value)) nextValues.delete(value)
+    else nextValues.add(value)
+    const next = Array.from(nextValues)
+    setParam("capability", next.length > 0 ? toCsv(next) : "")
+  }
+
+  function toggleMetal(value: string) {
+    const nextValues = new Set(metal)
+    if (nextValues.has(value)) nextValues.delete(value)
+    else nextValues.add(value)
+    const next = Array.from(nextValues)
+    setParam("metal", next.length > 0 ? toCsv(next) : "")
   }
 
   function clearAll() {
@@ -286,12 +315,15 @@ export default function ListingsSearchClient({ mode }: { mode: PageMode }) {
 
               <div className="space-y-2">
                 <Label>Premium Members</Label>
-                <Select value={premium} onValueChange={(v) => setParam("premium", v)}>
+                <Select
+                  value={premiumSelectValue}
+                  onValueChange={(v) => setParam("premium", v === "any" ? "" : v)}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Any" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Any</SelectItem>
+                    <SelectItem value="any">Any</SelectItem>
                     {PREMIUM_OPTIONS.map((p) => (
                       <SelectItem key={p} value={p}>
                         {p}
@@ -303,12 +335,15 @@ export default function ListingsSearchClient({ mode }: { mode: PageMode }) {
 
               <div className="space-y-2">
                 <Label>Listing Type</Label>
-                <Select value={listingType} onValueChange={(v) => setParam("listingType", v)}>
+                <Select
+                  value={listingTypeSelectValue}
+                  onValueChange={(v) => setParam("listingType", v === "any" ? "" : v)}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="All" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All</SelectItem>
+                    <SelectItem value="any">All</SelectItem>
                     {LISTING_TYPE_OPTIONS.map((t) => (
                       <SelectItem key={t.value} value={t.value}>
                         {t.label}
@@ -320,7 +355,10 @@ export default function ListingsSearchClient({ mode }: { mode: PageMode }) {
 
               <div className="space-y-2">
                 <Label>Date</Label>
-                <Select value={dateRange} onValueChange={(v) => setParam("dateRange", v)}>
+                <Select
+                  value={dateRangeSelectValue}
+                  onValueChange={(v) => setParam("dateRange", v === "any" ? "" : v)}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Any time" />
                   </SelectTrigger>
@@ -336,53 +374,47 @@ export default function ListingsSearchClient({ mode }: { mode: PageMode }) {
 
               <div className="space-y-2">
                 <Label>Industry (tag)</Label>
-                <Select value={industry} onValueChange={(v) => setParam("industry", v)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Any" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="">Any</SelectItem>
-                    {INDUSTRY_OPTIONS.map((i) => (
-                      <SelectItem key={i.value} value={i.value}>
-                        {i.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div className="space-y-2">
+                  {INDUSTRY_OPTIONS.map((i) => {
+                    const checked = industry.includes(i.value)
+                    return (
+                      <label key={i.value} className="flex items-center gap-2 text-sm">
+                        <input type="checkbox" checked={checked} onChange={() => toggleIndustry(i.value)} />
+                        <span>{i.label}</span>
+                      </label>
+                    )
+                  })}
+                </div>
               </div>
 
               <div className="space-y-2">
                 <Label>Capability (tag)</Label>
-                <Select value={capability} onValueChange={(v) => setParam("capability", v)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Any" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="">Any</SelectItem>
-                    {CAPABILITY_OPTIONS.map((c) => (
-                      <SelectItem key={c.value} value={c.value}>
-                        {c.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div className="space-y-2">
+                  {CAPABILITY_OPTIONS.map((c) => {
+                    const checked = capability.includes(c.value)
+                    return (
+                      <label key={c.value} className="flex items-center gap-2 text-sm">
+                        <input type="checkbox" checked={checked} onChange={() => toggleCapability(c.value)} />
+                        <span>{c.label}</span>
+                      </label>
+                    )
+                  })}
+                </div>
               </div>
 
               <div className="space-y-2">
                 <Label>Metal (tag)</Label>
-                <Select value={metal} onValueChange={(v) => setParam("metal", v)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Any" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="">Any</SelectItem>
-                    {METAL_OPTIONS.map((m) => (
-                      <SelectItem key={m.value} value={m.value}>
-                        {m.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div className="space-y-2">
+                  {METAL_OPTIONS.map((m) => {
+                    const checked = metal.includes(m.value)
+                    return (
+                      <label key={m.value} className="flex items-center gap-2 text-sm">
+                        <input type="checkbox" checked={checked} onChange={() => toggleMetal(m.value)} />
+                        <span>{m.label}</span>
+                      </label>
+                    )
+                  })}
+                </div>
               </div>
 
               <div className="space-y-2">

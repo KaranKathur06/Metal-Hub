@@ -137,17 +137,23 @@ export class ListingQueryDto {
   @IsOptional()
   country?: string[];
 
-  @IsString()
+  @Transform(({ value }) => (typeof value === 'string' ? value.split(',').filter(Boolean) : value))
+  @IsArray()
+  @IsString({ each: true })
   @IsOptional()
-  industry?: string;
+  industry?: string[];
 
-  @IsString()
+  @Transform(({ value }) => (typeof value === 'string' ? value.split(',').filter(Boolean) : value))
+  @IsArray()
+  @IsString({ each: true })
   @IsOptional()
-  capability?: string;
+  capability?: string[];
 
-  @IsString()
+  @Transform(({ value }) => (typeof value === 'string' ? value.split(',').filter(Boolean) : value))
+  @IsArray()
+  @IsString({ each: true })
   @IsOptional()
-  metal?: string;
+  metal?: string[];
 
   @IsEnum(MetalType)
   @IsOptional()

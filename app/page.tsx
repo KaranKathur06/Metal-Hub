@@ -70,32 +70,20 @@ export default function HomePage() {
       {/* Hero Section */}
       <section className="container py-16 md:py-24">
         <div className="mx-auto max-w-3xl text-center">
-          <h1 className="text-4xl font-bold tracking-tight sm:text-5xl md:text-6xl">
-            India&apos;s Dedicated Marketplace for
-            <span className="text-primary"> Metal Buyers & Sellers</span>
-          </h1>
-          <p className="mt-6 text-lg text-muted-foreground">
-            Connect with verified suppliers and buyers. Trade steel, iron, aluminium, copper, and more with confidence.
-          </p>
-          <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:justify-center">
-            <Link href="/listings">
-              <Button size="lg" className="w-full sm:w-auto">
-                Browse Listings
-              </Button>
-            </Link>
-            <Link href="/sell">
-              <Button size="lg" variant="outline" className="w-full sm:w-auto">
-                Post Your Metal Product
-              </Button>
-            </Link>
-          </div>
-        </div>
+          <HeroRoleSearchClient />
 
-        <HeroRoleSearchClient />
+          <h1 className="mt-10 text-4xl font-bold tracking-tight text-slate-900">
+            India&apos;s B2B Metal Marketplace for Verified Buyers & Suppliers
+          </h1>
+          <p className="mx-auto mt-5 max-w-[700px] text-lg text-slate-600">
+            Connect with trusted manufacturers, exporters, importers and industrial suppliers of steel, aluminium, copper, brass
+            and stainless steel across India and global markets.
+          </p>
+        </div>
       </section>
 
       {/* Featured Categories */}
-      <section className="border-t bg-muted/50 py-12">
+      <section className="border-t bg-muted/50 py-12 mt-[120px]">
         <div className="container">
           <h2 className="mb-8 text-3xl font-bold">Browse by Metal Type</h2>
           <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
