@@ -1,8 +1,8 @@
 "use client"
 
 import Link from "next/link"
-import { usePathname } from "next/navigation"
-import { useEffect, useState } from "react"
+import { usePathname, useRouter } from "next/navigation"
+import { useEffect, useRef, useState } from "react"
 import { User, LogOut, ChevronDown, Menu } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
@@ -40,9 +40,36 @@ const NAV_LINK_CLASS =
   "relative text-[15px] font-semibold text-slate-700 transition-colors hover:text-slate-900 after:absolute after:-bottom-1 after:left-0 after:h-[2px] after:w-full after:origin-left after:scale-x-0 after:bg-slate-900 after:transition-transform hover:after:scale-x-100"
 
 export function Header() {
+  const router = useRouter()
   const pathname = usePathname()
   const [mounted, setMounted] = useState(false)
   const isAuthenticated = false // TODO: Replace with actual auth check
+
+  const [openMenu, setOpenMenu] = useState<"capabilities" | "services" | "products" | null>(null)
+  const closeTimerRef = useRef<number | null>(null)
+
+  function clearCloseTimer() {
+    if (closeTimerRef.current) window.clearTimeout(closeTimerRef.current)
+    closeTimerRef.current = null
+  }
+
+  function open(key: "capabilities" | "services" | "products") {
+    clearCloseTimer()
+    setOpenMenu(key)
+  }
+
+  function scheduleClose(key: "capabilities" | "services" | "products") {
+    clearCloseTimer()
+    closeTimerRef.current = window.setTimeout(() => {
+      setOpenMenu((curr) => (curr === key ? null : curr))
+    }, 140)
+  }
+
+  function navigate(url: string) {
+    clearCloseTimer()
+    setOpenMenu(null)
+    router.push(url)
+  }
 
   useEffect(() => {
     setMounted(true)
@@ -55,138 +82,147 @@ export function Header() {
           <Link href="/" className="flex items-center space-x-2">
             <span className="text-2xl font-bold text-slate-900">MetalHub</span>
           </Link>
-          <nav className="hidden lg:flex max-w-[720px] items-center gap-9 overflow-x-auto whitespace-nowrap">
-            <Link
-              href="/"
-              className={cn(
-                NAV_LINK_CLASS,
-                mounted && pathname === "/" ? "text-slate-900" : "text-slate-700"
-              )}
-            >
-              Home
-            </Link>
-
-            <Link
-              href="/about"
-              className={cn(
-                NAV_LINK_CLASS,
-                mounted && pathname === "/about" ? "text-slate-900" : "text-slate-700"
-              )}
-            >
-              About
-            </Link>
-
-            <DropdownRoot>
-              <DropdownTrigger asChild>
-                <button
-                  type="button"
-                  className={cn(NAV_LINK_CLASS, "inline-flex items-center gap-2")}
+          <nav className="hidden lg:block">
+            <ul className="flex max-w-[720px] items-center gap-9 overflow-x-auto whitespace-nowrap">
+              <li className="relative">
+                <Link
+                  href="/"
+                  className={cn(
+                    NAV_LINK_CLASS,
+                    mounted && pathname === "/" ? "text-slate-900" : "text-slate-700"
+                  )}
                 >
-                  Capabilities
-                  <ChevronDown className="h-4 w-4" />
-                </button>
-              </DropdownTrigger>
-              <DropdownPortal>
-                <DropdownContent
-                  sideOffset={10}
-                  align="center"
-                  className="z-50 w-[520px] rounded-md border bg-white p-5 text-slate-900 shadow-md data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95"
+                  Home
+                </Link>
+              </li>
+
+              <li className="relative">
+                <Link
+                  href="/about"
+                  className={cn(
+                    NAV_LINK_CLASS,
+                    mounted && pathname === "/about" ? "text-slate-900" : "text-slate-700"
+                  )}
                 >
-                  <div className="space-y-3">
-                    <div className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                  About
+                </Link>
+              </li>
+
+              <li className="relative" onPointerEnter={() => open("capabilities")} onPointerLeave={() => scheduleClose("capabilities")}>
+                <DropdownRoot open={openMenu === "capabilities"} onOpenChange={(o) => setOpenMenu(o ? "capabilities" : null)}>
+                  <DropdownTrigger asChild>
+                    <button type="button" className={cn(NAV_LINK_CLASS, "inline-flex items-center gap-2")}> 
                       Capabilities
-                    </div>
-                    <div className="grid gap-2 md:grid-cols-2">
-                      {[
-                        { label: "Casting", value: "casting" },
-                        { label: "Forging", value: "forging" },
-                        { label: "Fabrication", value: "fabrication" },
-                        { label: "Machining", value: "machining" },
-                      ].map((item) => (
-                        <DropdownItem key={item.value} asChild>
-                          <Link
-                            href={`/listings?capability=${item.value}`}
-                            className="block rounded-md px-3 py-2 text-sm outline-none hover:bg-slate-50"
+                      <ChevronDown className="h-4 w-4" />
+                    </button>
+                  </DropdownTrigger>
+                  <DropdownPortal>
+                    <DropdownContent
+                      sideOffset={10}
+                      align="center"
+                      onPointerEnter={clearCloseTimer}
+                      onPointerLeave={() => scheduleClose("capabilities")}
+                      className="z-50 w-[520px] rounded-md border bg-white p-5 text-slate-900 shadow-md data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95"
+                    >
+                      <div className="space-y-3">
+                        <div className="text-xs font-semibold uppercase tracking-wider text-slate-500">Capabilities</div>
+                        <div className="grid gap-2 md:grid-cols-2">
+                          {[
+                            { label: "Casting", value: "casting" },
+                            { label: "Forging", value: "forging" },
+                            { label: "Fabrication", value: "fabrication" },
+                            { label: "Machining", value: "machining" },
+                          ].map((item) => (
+                            <DropdownItem
+                              key={item.value}
+                              className="rounded-md px-3 py-2 text-sm outline-none hover:bg-slate-50"
+                              onSelect={(e) => {
+                                e.preventDefault()
+                                navigate(`/listings?capability=${item.value}`)
+                              }}
+                            >
+                              {item.label}
+                            </DropdownItem>
+                          ))}
+                        </div>
+                      </div>
+                    </DropdownContent>
+                  </DropdownPortal>
+                </DropdownRoot>
+              </li>
+
+              <li className="relative" onPointerEnter={() => open("services")} onPointerLeave={() => scheduleClose("services")}>
+                <DropdownRoot open={openMenu === "services"} onOpenChange={(o) => setOpenMenu(o ? "services" : null)}>
+                  <DropdownTrigger asChild>
+                    <button type="button" className={cn(NAV_LINK_CLASS, "inline-flex items-center gap-2")}>
+                      Services
+                      <ChevronDown className="h-4 w-4" />
+                    </button>
+                  </DropdownTrigger>
+                  <DropdownPortal>
+                    <DropdownContent
+                      sideOffset={10}
+                      align="center"
+                      onPointerEnter={clearCloseTimer}
+                      onPointerLeave={() => scheduleClose("services")}
+                      className="z-50 w-[560px] rounded-md border bg-white p-5 text-slate-900 shadow-md data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95"
+                    >
+                      <div className="text-xs font-semibold uppercase tracking-wider text-slate-500">Industries We Serve</div>
+                      <div className="mt-3 grid gap-2 md:grid-cols-2">
+                        {SERVICES.map((s) => (
+                          <DropdownItem
+                            key={s.value}
+                            className="rounded-md px-3 py-2 text-sm outline-none hover:bg-slate-50"
+                            onSelect={(e) => {
+                              e.preventDefault()
+                              navigate(`/listings?industry=${s.value}`)
+                            }}
                           >
-                            {item.label}
-                          </Link>
-                        </DropdownItem>
-                      ))}
-                    </div>
-                  </div>
-                </DropdownContent>
-              </DropdownPortal>
-            </DropdownRoot>
+                            {s.label}
+                          </DropdownItem>
+                        ))}
+                      </div>
+                    </DropdownContent>
+                  </DropdownPortal>
+                </DropdownRoot>
+              </li>
 
-            <DropdownRoot>
-              <DropdownTrigger asChild>
-                <button
-                  type="button"
-                  className={cn(NAV_LINK_CLASS, "inline-flex items-center gap-2")}
-                >
-                  Services
-                  <ChevronDown className="h-4 w-4" />
-                </button>
-              </DropdownTrigger>
-              <DropdownPortal>
-                <DropdownContent
-                  sideOffset={10}
-                  align="center"
-                  className="z-50 w-[560px] rounded-md border bg-white p-5 text-slate-900 shadow-md data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95"
-                >
-                  <div className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-                    Industries We Serve
-                  </div>
-                  <div className="mt-3 grid gap-2 md:grid-cols-2">
-                    {SERVICES.map((s) => (
-                      <DropdownItem key={s.value} asChild>
-                        <Link
-                          href={`/listings?industry=${s.value}`}
-                          className="block rounded-md px-3 py-2 text-sm outline-none hover:bg-slate-50"
-                        >
-                          {s.label}
-                        </Link>
-                      </DropdownItem>
-                    ))}
-                  </div>
-                </DropdownContent>
-              </DropdownPortal>
-            </DropdownRoot>
-
-            <DropdownRoot>
-              <DropdownTrigger asChild>
-                <button
-                  type="button"
-                  className={cn(NAV_LINK_CLASS, "inline-flex items-center gap-2")}
-                >
-                  Products
-                  <ChevronDown className="h-4 w-4" />
-                </button>
-              </DropdownTrigger>
-              <DropdownPortal>
-                <DropdownContent
-                  sideOffset={10}
-                  align="center"
-                  className="z-50 w-[420px] rounded-md border bg-white p-5 text-slate-900 shadow-md data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95"
-                >
-                  <div className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-                    Metals
-                  </div>
-                  <div className="mt-3 grid gap-2 md:grid-cols-2">
-                    {PRODUCTS.map((p) => (
-                      <DropdownItem key={p.value} asChild>
-                        <Link
-                          href={`/suppliers?metal=${p.value}`}
-                          className="block rounded-md px-3 py-2 text-sm outline-none hover:bg-slate-50"
-                        >
-                          {p.label}
-                        </Link>
-                      </DropdownItem>
-                    ))}
-                  </div>
-                </DropdownContent>
-              </DropdownPortal>
-            </DropdownRoot>
+              <li className="relative" onPointerEnter={() => open("products")} onPointerLeave={() => scheduleClose("products")}>
+                <DropdownRoot open={openMenu === "products"} onOpenChange={(o) => setOpenMenu(o ? "products" : null)}>
+                  <DropdownTrigger asChild>
+                    <button type="button" className={cn(NAV_LINK_CLASS, "inline-flex items-center gap-2")}>
+                      Products
+                      <ChevronDown className="h-4 w-4" />
+                    </button>
+                  </DropdownTrigger>
+                  <DropdownPortal>
+                    <DropdownContent
+                      sideOffset={10}
+                      align="center"
+                      onPointerEnter={clearCloseTimer}
+                      onPointerLeave={() => scheduleClose("products")}
+                      className="z-50 w-[420px] rounded-md border bg-white p-5 text-slate-900 shadow-md data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95"
+                    >
+                      <div className="text-xs font-semibold uppercase tracking-wider text-slate-500">Metals</div>
+                      <div className="mt-3 grid gap-2 md:grid-cols-2">
+                        {PRODUCTS.map((p) => (
+                          <DropdownItem
+                            key={p.value}
+                            className="rounded-md px-3 py-2 text-sm outline-none hover:bg-slate-50"
+                            onSelect={(e) => {
+                              e.preventDefault()
+                              navigate(`/suppliers?metal=${p.value}`)
+                            }}
+                          >
+                            {p.label}
+                          </DropdownItem>
+                        ))}
+                      </div>
+                    </DropdownContent>
+                  </DropdownPortal>
+                </DropdownRoot>
+              </li>
+            </ul>
           </nav>
         </div>
 
