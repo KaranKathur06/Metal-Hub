@@ -14,7 +14,7 @@ permissions:
 # Allow only one concurrent deployment, skipping runs queued between the run in-progress and latest queued.
 # However, do NOT cancel in-progress runs as we want to allow these production deployments to complete.
 concurrency:
-  group: "pages"
+  group: "ci"
   cancel-in-progress: false
 
 jobs:
@@ -45,8 +45,6 @@ jobs:
         with:
           node-version: "20"
           cache: ${{ steps.detect-package-manager.outputs.manager }}
-      - name: Setup Pages
-        run: echo "Skipping GitHub Pages config (server build)"
       - name: Restore cache
         uses: actions/cache@v4
         with:

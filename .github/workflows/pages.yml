@@ -1,15 +1,13 @@
 name: Build Next.js app
 
 on:
-  push:
-    branches: ["main"]
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: "pages"
+  group: "ci"
   cancel-in-progress: true
 
 jobs:
