@@ -69,6 +69,7 @@ model Profile {
   bio         String?
   logoUrl     String?  @map("logo_url")
   kycStatus   KycStatus @default(PENDING) @map("kyc_status")
+  responseTime Int?     @map("response_time") // Added to track average response in minutes
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
@@ -140,6 +141,7 @@ model Listing {
   location     Json          // { city, state, country }
   status       ListingStatus @default(PENDING)
   isFeatured   Boolean       @default(false) @map("is_featured")
+  viewsCount   Int           @default(0) @map("views_count")
   featuredUntil DateTime?    @map("featured_until")
   createdAt    DateTime      @default(now()) @map("created_at")
   updatedAt    DateTime      @updatedAt @map("updated_at")

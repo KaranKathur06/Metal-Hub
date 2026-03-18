@@ -1,0 +1,55 @@
+{
+  "version": 1,
+  "skills": {
+    "auth-implementation-patterns": {
+      "source": "wshobson/agents",
+      "sourceType": "github",
+      "computedHash": "371c84e03e4b456134fba5427096083b163716517f6210fadcffe887c5f1daae"
+    },
+    "building-admin-dashboard-customizations": {
+      "source": "medusajs/medusa-agent-skills",
+      "sourceType": "github",
+      "computedHash": "fdf61048a7c3872c70a16861c8bb3e5cf9973a04d55b97139cd49e352fa3f82c"
+    },
+    "find-skills": {
+      "source": "vercel-labs/skills",
+      "sourceType": "github",
+      "computedHash": "25872a21881a950edc3db1f3329664d60405d539660ce05b3265db2de06a7dfd"
+    },
+    "frontend-design": {
+      "source": "anthropics/skills",
+      "sourceType": "github",
+      "computedHash": "516bd2154eb843a8240e43d5b285229129853114ad7075a5e141e1c08e408c84"
+    },
+    "nodejs-backend": {
+      "source": "alinaqi/claude-bootstrap",
+      "sourceType": "github",
+      "computedHash": "f19e62059da07272c6c5749e8ef7dd3e1c238f224a81b0da228d0eb68c8b3ed4"
+    },
+    "senior-uiux-designer-b2b-floral": {
+      "source": "nsairat/professional-skills",
+      "sourceType": "github",
+      "computedHash": "131c36a6b50a37487eef014878f201dd1a1371298ee11cd3facd318874346210"
+    },
+    "system-design": {
+      "source": "anthropics/knowledge-work-plugins",
+      "sourceType": "github",
+      "computedHash": "9b334dd1bc654fda2ed014680e1910f33fcb4b0daa6fee2b91ef50156f401b81"
+    },
+    "ui-design-pro": {
+      "source": "ceorkm/ui-design-pro",
+      "sourceType": "github",
+      "computedHash": "352df4e02cc4bc450cc7241196d23a8917d117cd5d91ac99a2848ceef6a74d65"
+    },
+    "ui-ux-pro-max": {
+      "source": "nextlevelbuilder/ui-ux-pro-max-skill",
+      "sourceType": "github",
+      "computedHash": "6337038fe1fe6bbe1b9f252ab678ee575859190bab6f0f246f4061824eb40875"
+    },
+    "web-design-guidelines": {
+      "source": "vercel-labs/agent-skills",
+      "sourceType": "github",
+      "computedHash": "d8e7d3afe37dcc8a97b99ffb5afdb4d0919ae0092ea8b68f44eb201f035e33ac"
+    }
+  }
+}

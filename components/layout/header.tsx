@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu"
 
-const SERVICES = [
+const Industries = [
   { label: "Automotive OEM", value: "automotive-oem" },
   { label: "Aerospace & Defense", value: "aerospace-defense" },
   { label: "Electronics Manufacturing", value: "electronics-manufacturing" },
@@ -63,13 +63,25 @@ export function Header() {
 
               <li>
                 <Link
-                  href="/about"
+                  href="/listings"
                   className={cn(
                     NAV_LINK_CLASS,
-                    mounted && pathname === "/about" ? "text-slate-900" : "text-slate-700"
+                    mounted && pathname === "/listings" ? "text-slate-900" : "text-slate-700"
                   )}
                 >
-                  About
+                  Listings
+                </Link>
+              </li>
+
+              <li>
+                <Link
+                  href="/suppliers"
+                  className={cn(
+                    NAV_LINK_CLASS,
+                    mounted && pathname === "/suppliers" ? "text-slate-900" : "text-slate-700"
+                  )}
+                >
+                  Suppliers
                 </Link>
               </li>
 
@@ -112,7 +124,7 @@ export function Header() {
                   type="button"
                   className={cn(NAV_LINK_CLASS, "inline-flex items-center gap-2")}
                 >
-                  Services
+                  Industries
                   <ChevronDown className="h-4 w-4" />
                 </button>
                 <div className="absolute left-0 right-0 top-full h-8 pointer-events-auto" />
@@ -122,7 +134,7 @@ export function Header() {
                       Industries We Serve
                     </div>
                     <div className="mt-4 grid gap-2 md:grid-cols-4">
-                      {SERVICES.map((s) => (
+                      {Industries.map((s) => (
                         <Link
                           key={s.value}
                           href={`/listings?industry=${s.value}`}
@@ -162,6 +174,17 @@ export function Header() {
                   </div>
                 </div>
               </li>
+              <li>
+                <Link
+                  href="/pricing"
+                  className={cn(
+                    NAV_LINK_CLASS,
+                    mounted && pathname === "/pricing" ? "text-slate-900" : "text-slate-700"
+                  )}
+                >
+                  Pricing
+                </Link>
+              </li>
             </ul>
           </nav>
         </div>
@@ -185,17 +208,22 @@ export function Header() {
                     </Link>
                   </DropdownMenu.Item>
                   <DropdownMenu.Item asChild>
-                    <Link href="/about" className="block rounded-md px-3 py-2 text-sm outline-none hover:bg-slate-50">
-                      About
+                    <Link href="/listings" className="block rounded-md px-3 py-2 text-sm outline-none hover:bg-slate-50">
+                      Listings
+                    </Link>
+                  </DropdownMenu.Item>
+                  <DropdownMenu.Item asChild>
+                    <Link href="/suppliers" className="block rounded-md px-3 py-2 text-sm outline-none hover:bg-slate-50">
+                      Suppliers
                     </Link>
                   </DropdownMenu.Item>
 
                   <DropdownMenu.Separator className="my-1 h-px bg-slate-100" />
                   <DropdownMenu.Label className="px-3 py-2 text-xs font-semibold uppercase tracking-wider text-slate-500">
-                    Services
+                    Industries
                   </DropdownMenu.Label>
-                  {SERVICES.map((s) => (
-                    <DropdownMenu.Item key={`m-services-${s.value}`} asChild>
+                  {Industries.map((s) => (
+                    <DropdownMenu.Item key={`m-Industries-${s.value}`} asChild>
                       <Link
                         href={`/listings?industry=${s.value}`}
                         className="block rounded-md px-3 py-2 text-sm outline-none hover:bg-slate-50"
@@ -220,21 +248,15 @@ export function Header() {
                     </DropdownMenu.Item>
                   ))}
 
-                  <DropdownMenu.Separator className="my-1 h-px bg-slate-100" />
                   <DropdownMenu.Item asChild>
-                    <Link href="/suppliers" className="block rounded-md px-3 py-2 text-sm outline-none hover:bg-slate-50">
-                      Find Suppliers
-                    </Link>
-                  </DropdownMenu.Item>
-                  <DropdownMenu.Item asChild>
-                    <Link href="/buyers" className="block rounded-md px-3 py-2 text-sm outline-none hover:bg-slate-50">
-                      Find Buyers
+                    <Link href="/pricing" className="block rounded-md px-3 py-2 text-sm outline-none hover:bg-slate-50">
+                      Pricing
                     </Link>
                   </DropdownMenu.Item>
                   <DropdownMenu.Separator className="my-1 h-px bg-slate-100" />
                   <DropdownMenu.Item asChild>
-                    <Link href="/login" className="block rounded-md px-3 py-2 text-sm outline-none hover:bg-slate-50">
-                      Login
+                    <Link href="/post-requirement" className="block rounded-md px-3 py-2 text-sm font-semibold text-primary outline-none hover:bg-slate-50">
+                      Post Requirement
                     </Link>
                   </DropdownMenu.Item>
                   <DropdownMenu.Item asChild>
@@ -243,8 +265,8 @@ export function Header() {
                     </Link>
                   </DropdownMenu.Item>
                   <DropdownMenu.Item asChild>
-                    <Link href="/post-requirement" className="block rounded-md px-3 py-2 text-sm outline-none hover:bg-slate-50">
-                      Post Requirement
+                    <Link href="/login" className="block rounded-md px-3 py-2 text-sm outline-none hover:bg-slate-50">
+                      Login
                     </Link>
                   </DropdownMenu.Item>
                 </DropdownMenu.Content>
@@ -266,19 +288,23 @@ export function Header() {
             </>
           ) : (
             <>
-              <Link href="/login">
-                <Button variant="ghost" size="sm">
-                  Login
-                </Button>
-              </Link>
-              <Link href="/register">
-                <Button variant="outline" size="sm">Register</Button>
-              </Link>
-              <Link href="/post-requirement">
-                <Button size="sm" className="bg-slate-900 text-white hover:bg-slate-800">
-                  Post Requirement
-                </Button>
-              </Link>
+              <div className="hidden md:flex items-center gap-2">
+                <Link href="/login">
+                  <Button variant="ghost" size="sm" className="font-semibold text-slate-600 hover:text-slate-900">
+                    Login
+                  </Button>
+                </Link>
+                <Link href="/register">
+                  <Button variant="outline" size="sm" className="font-semibold bg-white">
+                    Register
+                  </Button>
+                </Link>
+                <Link href="/post-requirement">
+                  <Button size="sm" className="font-bold bg-gradient-to-br from-[#1e3a8a] to-[#3b82f6] text-white shadow-[0_4px_14px_rgba(59,130,246,0.3)] hover:shadow-[0_6px_20px_rgba(59,130,246,0.4)] hover:-translate-y-0.5 transition-all border-none ml-2">
+                    Post Requirement
+                  </Button>
+                </Link>
+              </div>
             </>
           )}
         </div>

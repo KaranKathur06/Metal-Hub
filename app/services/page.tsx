@@ -3,11 +3,11 @@ import Link from "next/link"
 import { Card, CardHeader, CardTitle } from "@/components/ui/card"
 
 export const metadata: Metadata = {
-  title: "Services | Metal Hub",
+  title: "Industries | Metal Hub",
   description: "Industries we serve with structured discovery and verified marketplace profiles.",
 }
 
-const services = [
+const Industries = [
   { title: "Automotive OEM", slug: "automotive-oem" },
   { title: "Aerospace & Defense", slug: "aerospace-defense" },
   { title: "Electronics Manufacturing", slug: "electronics-manufacturing" },
@@ -18,16 +18,16 @@ const services = [
   { title: "Medical Devices", slug: "medical-devices" },
 ] as const
 
-export default function ServicesPage() {
+export default function IndustriesPage() {
   return (
     <div className="container py-12">
       <div className="mb-8">
-        <h1 className="text-4xl font-bold">Services</h1>
+        <h1 className="text-4xl font-bold">Industries</h1>
         <p className="mt-2 text-muted-foreground">Industries We Serve</p>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {services.map((s) => (
+        {Industries.map((s) => (
           <Link key={s.slug} href={`/listings?industry=${s.slug}`}>
             <Card className="transition-all hover:shadow-lg">
               <CardHeader>

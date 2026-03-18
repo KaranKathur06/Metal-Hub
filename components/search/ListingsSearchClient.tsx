@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
+import { ChevronDown, MapPin, CheckCircle, Star, FilterX, Image as ImageIcon } from "lucide-react"
+import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -273,18 +275,20 @@ export default function ListingsSearchClient({ mode }: { mode: PageMode }) {
         </div>
       ) : null}
 
-      <div className="grid gap-6 lg:grid-cols-[320px_1fr]">
-        <aside className="lg:sticky lg:top-20 lg:self-start">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-lg">Filters</CardTitle>
-                <Button variant="outline" size="sm" onClick={clearAll}>
-                  Clear
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-5">
+      <div className="grid gap-8 lg:grid-cols-[280px_1fr]">
+        <aside className="lg:sticky lg:top-24 lg:self-start">
+          <div className="bg-white rounded-[16px] p-5 shadow-[0_10px_25px_rgba(0,0,0,0.05)] border border-slate-100">
+            <div className="flex items-center justify-between pb-4 mb-4 border-b border-slate-100">
+              <h3 className="text-lg font-bold text-slate-900">Filters</h3>
+              <button 
+                type="button" 
+                className="text-sm font-semibold text-blue-600 hover:text-blue-800 transition-colors" 
+                onClick={clearAll}
+              >
+                Reset All
+              </button>
+            </div>
+            <div className="space-y-6">
               <div className="space-y-2">
                 <Label>Search</Label>
                 <Input
@@ -430,8 +434,8 @@ export default function ListingsSearchClient({ mode }: { mode: PageMode }) {
                   </SelectContent>
                 </Select>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         </aside>
 
         <section>
@@ -450,72 +454,95 @@ export default function ListingsSearchClient({ mode }: { mode: PageMode }) {
           ) : null}
 
           {!loading && !error && results && results.listings.length === 0 ? (
-            <Card>
-              <CardContent className="p-6">
-                <div className="text-sm">No listings found</div>
-                <div className="mt-2 text-sm text-muted-foreground">
-                  Try removing some filters.
-                </div>
-                <div className="mt-4">
-                  <Button variant="outline" onClick={clearAll}>
-                    Clear filters
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
+            <div className="flex flex-col items-center justify-center py-20 px-4 text-center bg-white rounded-2xl border border-slate-100 shadow-sm">
+              <div className="h-16 w-16 bg-slate-50 text-slate-400 rounded-full flex items-center justify-center mb-6 border border-slate-100 shadow-sm">
+                <FilterX className="h-8 w-8" />
+              </div>
+              <h3 className="text-xl font-bold text-slate-900 mb-2">No results found</h3>
+              <p className="text-slate-500 mb-8 max-w-sm">
+                We couldn&apos;t find any matches for your current filter combination. Try adjusting them.
+              </p>
+              <Button onClick={clearAll} className="bg-slate-900 text-white rounded-xl h-11 px-6 hover:bg-slate-800">
+                Reset Filters
+              </Button>
+            </div>
           ) : null}
 
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-2">
             {loading
               ? Array.from({ length: 6 }).map((_, i) => (
-                  <Card key={`skeleton-${i}`}>
-                    <CardHeader>
-                      <div className="h-4 w-3/4 animate-pulse rounded bg-muted" />
-                    </CardHeader>
-                    <CardContent className="space-y-3">
-                      <div className="h-3 w-1/2 animate-pulse rounded bg-muted" />
-                      <div className="flex gap-2">
-                        <div className="h-5 w-16 animate-pulse rounded bg-muted" />
-                        <div className="h-5 w-20 animate-pulse rounded bg-muted" />
-                      </div>
-                      <div className="h-9 w-32 animate-pulse rounded bg-muted" />
-                    </CardContent>
-                  </Card>
+                  <div key={`skeleton-${i}`} className="bg-white rounded-[16px] p-4 border border-slate-100 shadow-sm">
+                    <div className="aspect-[4/3] w-full bg-slate-100 rounded-xl mb-4 animate-pulse" />
+                    <div className="h-5 w-3/4 animate-pulse rounded-md bg-slate-100 mb-3" />
+                    <div className="h-4 w-1/2 animate-pulse rounded-md bg-slate-100 mb-6" />
+                    <div className="h-10 w-full animate-pulse rounded-xl bg-slate-100" />
+                  </div>
                 ))
               : (results?.listings || []).map((l) => {
+                  const companyName = l?.seller?.profile?.companyName || l?.seller?.profile?.fullName || "Verified Business"
+                  
                   const CardInner = (
-                    <Card className={mode === "directory" ? "transition-shadow hover:shadow-md" : undefined}>
-                      <CardHeader>
-                        <CardTitle className="text-base">{l.title}</CardTitle>
-                      </CardHeader>
-                      <CardContent className="space-y-2">
-                        <div className="text-sm text-muted-foreground">
-                          {l?.seller?.profile?.companyName || l?.seller?.profile?.fullName || "Company"}
+                    <div className="bg-white rounded-[16px] p-4 border border-slate-100 transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_15px_30px_rgba(0,0,0,0.08)] flex flex-col h-full group">
+                      {/* Placeholder Image Header */}
+                      {mode !== "suppliers" && (
+                        <div className="relative aspect-[4/3] w-full overflow-hidden bg-slate-50 rounded-xl mb-4">
+                          <div className="absolute inset-0 flex items-center justify-center text-slate-300">
+                            <ImageIcon className="h-10 w-10 opacity-50" />
+                          </div>
+                          {l.premiumStatus && l.premiumStatus !== "FREE" && (
+                            <div className="absolute top-3 left-3 bg-gradient-to-r from-amber-500 to-yellow-400 text-white text-[10px] font-bold uppercase tracking-wider py-1 px-2.5 rounded-full shadow-sm z-10">
+                              Premium
+                            </div>
+                          )}
                         </div>
-                        <div className="flex flex-wrap gap-2">
-                          {l.premiumStatus && l.premiumStatus !== "FREE" ? (
-                            <Badge variant="warning">{l.premiumStatus}</Badge>
-                          ) : null}
-                          {l.country ? <Badge variant="secondary">{l.country}</Badge> : null}
-                          {Array.isArray(l.metals) && l.metals.length > 0 ? (
-                            <Badge variant="secondary">{l.metals[0]}</Badge>
-                          ) : null}
-                        </div>
+                      )}
 
-                        <div className="pt-2">
-                          <Button size="sm">
-                            {mode === "buyers"
-                              ? "Contact Buyer"
-                              : mode === "suppliers"
-                                ? "Contact Supplier"
-                                : "View Details"}
+                      <div className="flex-1 flex flex-col">
+                        <h3 className="text-lg font-bold text-slate-900 group-hover:text-blue-600 transition-colors line-clamp-2 mb-2">
+                          {mode === "suppliers" ? companyName : l.title}
+                        </h3>
+                        
+                        {mode === "suppliers" ? (
+                          <div className="mb-4">
+                            <div className="flex items-center gap-1.5 text-sm font-medium text-emerald-600 mb-2">
+                              <CheckCircle className="h-4 w-4" /> Verified Supplier
+                            </div>
+                            {l.country && (
+                              <div className="flex items-center gap-1.5 text-sm text-slate-500">
+                                <MapPin className="h-3.5 w-3.5" /> {l.country}
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="mb-4">
+                            <div className="text-sm font-medium text-slate-500 mb-1">{companyName}</div>
+                            {l.country && (
+                              <div className="flex items-center gap-1.5 text-xs text-slate-500">
+                                <MapPin className="h-3 w-3" /> {l.country}
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        <div className="mt-auto pt-4 border-t border-slate-100 flex items-center justify-between">
+                          {mode === "suppliers" ? (
+                            <span className="flex items-center gap-1 text-sm font-bold text-slate-700">
+                              <Star className="h-4 w-4 text-amber-400 fill-amber-400" /> 4.8
+                            </span>
+                          ) : (
+                            <span className="font-extrabold text-slate-900">
+                              Contact for Price
+                            </span>
+                          )}
+                          <Button size="sm" className={cn("rounded-lg font-semibold", mode === "suppliers" ? "bg-white text-blue-600 border border-blue-200 hover:bg-blue-50 hover:border-blue-300 shadow-none" : "bg-slate-900 text-white hover:bg-slate-800")}>
+                            {mode === "suppliers" ? "Contact" : "View Details"}
                           </Button>
                         </div>
-                      </CardContent>
-                    </Card>
+                      </div>
+                    </div>
                   )
 
-                  if (mode === "directory") {
+                  if (mode === "directory" || mode === "buyers") {
                     return (
                       <Link key={l.id} href={`/listings/${l.id}`} className="block">
                         {CardInner}

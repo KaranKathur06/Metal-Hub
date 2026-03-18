@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react"
 import Link from "next/link"
-import { MapPin, User, MessageCircle, Heart, Share2, CheckCircle } from "lucide-react"
+import { MapPin, User, MessageCircle, Heart, Share2, CheckCircle, Award, Zap, Shield } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -57,6 +57,10 @@ Key Features:
         standard: "IS 2062",
         finish: "Hot Rolled",
       },
+      trustMetrics: {
+        responseTime: "< 2 hours",
+        successfulDeals: "200+",
+      }
     }),
     [id]
   )
@@ -72,25 +76,27 @@ Key Features:
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-6">
           <Card>
-            <CardContent className="p-0">
-              <div className="relative aspect-video w-full overflow-hidden rounded-t-lg bg-muted">
-                <div className="flex h-full items-center justify-center text-muted-foreground">
-                  Image {selectedImage + 1} Placeholder
+            <CardContent className="p-0 border-b border-border/50">
+              <div className="relative aspect-video w-full overflow-hidden rounded-t-lg bg-muted group cursor-zoom-in">
+                <div className="absolute inset-0 transition-transform duration-500 group-hover:scale-110 flex items-center justify-center bg-gradient-to-br from-slate-200 to-slate-100 dark:from-slate-800 dark:to-slate-900 text-muted-foreground">
+                  View Full Image {selectedImage + 1}
                 </div>
+                {/* Gradient overlay on hover to hint interactivity */}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
               </div>
-              <div className="flex gap-2 p-4">
+              <div className="flex gap-2 p-4 bg-background/50 rounded-b-lg overflow-x-auto">
                 {listing.images.map((_, index) => (
                   <button
                     key={index}
                     onClick={() => setSelectedImage(index)}
-                    className={`relative aspect-video w-20 overflow-hidden rounded border-2 transition-all ${
+                    className={`relative aspect-video w-24 shrink-0 overflow-hidden rounded-md border-2 transition-all duration-200 ${
                       selectedImage === index
-                        ? "border-primary"
-                        : "border-transparent hover:border-muted-foreground"
+                        ? "border-primary shadow-[0_0_10px_rgba(var(--primary),0.3)]"
+                        : "border-transparent opacity-70 hover:opacity-100 hover:border-primary/50"
                     }`}
                   >
-                    <div className="flex h-full items-center justify-center bg-muted text-xs text-muted-foreground">
-                      {index + 1}
+                    <div className="flex h-full items-center justify-center bg-muted text-xs font-medium text-muted-foreground">
+                      Img {index + 1}
                     </div>
                   </button>
                 ))}
@@ -197,16 +203,26 @@ Key Features:
                       <CheckCircle className="h-5 w-5 text-green-500" />
                     )}
                   </div>
-                  <div className="mt-1 flex items-center gap-4 text-sm text-muted-foreground">
-                    <span>⭐ {listing.seller.rating}</span>
-                    <span>{listing.seller.totalListings} Listings</span>
-                    <span>Member since {formatDate(listing.seller.joinedDate)}</span>
+                  <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
+                    <span className="flex items-center gap-1 font-medium bg-secondary/30 px-2 py-1 rounded-md">
+                       <Award className="h-4 w-4 text-metal-gold" /> ⭐ {listing.seller.rating}
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <CheckCircle className="h-4 w-4 text-success" />
+                      {listing.trustMetrics.successfulDeals} successful deals
+                    </span>
+                    <span className="flex items-center gap-1 text-primary">
+                       <Zap className="h-4 w-4" />
+                       Response: {listing.trustMetrics.responseTime}
+                    </span>
                   </div>
-                  <Link href={`/seller/${listing.seller.id}`}>
-                    <Button variant="outline" className="mt-4">
-                      View Seller Profile
-                    </Button>
-                  </Link>
+                  <div className="mt-4 pt-4 border-t border-border/50">
+                     <Link href={`/seller/${listing.seller.id}`}>
+                       <Button variant="outline" className="w-full sm:w-auto">
+                         View Full Profile
+                       </Button>
+                     </Link>
+                  </div>
                 </div>
               </div>
             </CardContent>
@@ -214,36 +230,48 @@ Key Features:
         </div>
 
         <div className="lg:sticky lg:top-20 lg:h-fit">
-          <Card className="sticky top-20">
-            <CardHeader>
-              <CardTitle>Interested?</CardTitle>
-              <CardDescription>Connect with the seller to discuss details</CardDescription>
+          <Card className="sticky top-20 border-primary/20 shadow-lg shadow-primary/5">
+            <CardHeader className="bg-primary/5 text-center rounded-t-lg">
+              <CardTitle className="text-xl">Interested in this Deal?</CardTitle>
+              <CardDescription>Connect with the seller for immediate response</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <Button className="w-full" size="lg">
-                <MessageCircle className="mr-2 h-4 w-4" />
-                Chat with Seller
+            <CardContent className="space-y-4 pt-6">
+              <Button className="w-full text-base py-6 bg-gradient-to-r from-primary to-metal-blue-light hover:shadow-glow transition-all" size="lg">
+                <MessageCircle className="mr-2 h-5 w-5" />
+                Contact Seller
               </Button>
-              <Button variant="outline" className="w-full" size="lg">
-                Make an Offer
+              <Button variant="outline" className="w-full text-base py-6 border-primary/50 hover:bg-primary/10 transition-colors" size="lg">
+                Request Quote
               </Button>
-              <div className="pt-4 text-center text-sm text-muted-foreground">
-                <p>{listing.views} views</p>
-                <p>{listing.inquiries} inquiries</p>
+              <div className="pt-6 pb-2 border-b border-border/50 flex items-center justify-around text-center text-sm text-muted-foreground">
+                <div>
+                  <div className="font-semibold text-foreground text-lg">{listing.views}</div>
+                  <div>views</div>
+                </div>
+                <div>
+                  <div className="font-semibold text-foreground text-lg">{listing.inquiries}</div>
+                  <div>inquiries</div>
+                </div>
+              </div>
+              <div className="pt-4 flex items-center justify-center gap-2 text-sm font-medium text-success">
+                 <Shield className="h-4 w-4" />
+                 Verified & Secure
               </div>
             </CardContent>
           </Card>
 
-          <Card className="mt-4">
-            <CardHeader>
-              <CardTitle className="text-lg">Safety Tips</CardTitle>
+          <Card className="mt-4 bg-muted/30 border-none">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                 <Shield className="h-4 w-4" />
+                 Safety Tips
+              </CardTitle>
             </CardHeader>
             <CardContent className="text-sm text-muted-foreground">
-              <ul className="space-y-2">
-                <li>• Verify seller credentials before payment</li>
-                <li>• Use secure payment methods</li>
-                <li>• Inspect products before finalizing</li>
-                <li>• Report suspicious listings</li>
+              <ul className="space-y-3">
+                <li className="flex items-start gap-2"><CheckCircle className="h-4 w-4 text-success mt-0.5" /> Verify seller credentials before payment</li>
+                <li className="flex items-start gap-2"><CheckCircle className="h-4 w-4 text-success mt-0.5" /> Use secure payment methods via MetalHub</li>
+                <li className="flex items-start gap-2"><CheckCircle className="h-4 w-4 text-success mt-0.5" /> Inspect products before finalizing</li>
               </ul>
             </CardContent>
           </Card>
