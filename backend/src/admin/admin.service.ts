@@ -2,7 +2,6 @@ import {
   Injectable,
   ForbiddenException,
   NotFoundException,
-  BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { UserRole, ListingStatus, UserStatus } from '@prisma/client';
@@ -213,6 +212,187 @@ export class AdminService {
     return { message: 'Listing featured successfully' };
   }
 
+  // Banner Management
+  async getBanners() {
+    return (this.prisma as any).banner.findMany({
+      orderBy: [{ orderIndex: 'asc' }, { createdAt: 'asc' }],
+    });
+  }
+
+  async createBanner(adminId: string, payload: any) {
+    await this.requireAdmin(adminId);
+
+    const banner = await (this.prisma as any).banner.create({
+      data: {
+        title: payload.title,
+        subtitle: payload.subtitle,
+        imageUrl: payload.imageUrl,
+        ctaText: payload.ctaText,
+        ctaLink: payload.ctaLink,
+        isActive: payload.isActive ?? true,
+        orderIndex: payload.orderIndex ?? 0,
+      },
+    });
+
+    await this.logAdminAction(adminId, 'CREATE_BANNER', banner.id);
+    return banner;
+  }
+
+  async updateBanner(adminId: string, id: string, payload: any) {
+    await this.requireAdmin(adminId);
+
+    const banner = await (this.prisma as any).banner.update({
+      where: { id },
+      data: payload,
+    });
+
+    await this.logAdminAction(adminId, 'UPDATE_BANNER', id);
+    return banner;
+  }
+
+  async deleteBanner(adminId: string, id: string) {
+    await this.requireAdmin(adminId);
+
+    await (this.prisma as any).banner.delete({ where: { id } });
+    await this.logAdminAction(adminId, 'DELETE_BANNER', id);
+
+    return { message: 'Banner deleted successfully' };
+  }
+
+  async reorderBanners(adminId: string, ids: string[]) {
+    await this.requireAdmin(adminId);
+
+    await this.prisma.$transaction(
+      ids.map((id, index) =>
+        (this.prisma as any).banner.update({
+          where: { id },
+          data: { orderIndex: index + 1 },
+        }),
+      ),
+    );
+
+    await this.logAdminAction(adminId, 'REORDER_BANNERS', undefined, { ids });
+    return { message: 'Banners reordered successfully' };
+  }
+
+  // Capability Management
+  async getCapabilities() {
+    return (this.prisma as any).capability.findMany({
+      orderBy: [{ orderIndex: 'asc' }, { createdAt: 'asc' }],
+    });
+  }
+
+  async createCapability(adminId: string, payload: any) {
+    await this.requireAdmin(adminId);
+
+    const capability = await (this.prisma as any).capability.create({
+      data: {
+        name: payload.name,
+        slug: payload.slug,
+        imageUrl: payload.imageUrl,
+        description: payload.description,
+        heroImageUrl: payload.heroImageUrl,
+        heroTitle: payload.heroTitle,
+        heroSubtitle: payload.heroSubtitle,
+        isActive: payload.isActive ?? true,
+        orderIndex: payload.orderIndex ?? 0,
+      },
+    });
+
+    await this.logAdminAction(adminId, 'CREATE_CAPABILITY', capability.id);
+    return capability;
+  }
+
+  async updateCapability(adminId: string, id: string, payload: any) {
+    await this.requireAdmin(adminId);
+
+    const capability = await (this.prisma as any).capability.update({
+      where: { id },
+      data: payload,
+    });
+
+    await this.logAdminAction(adminId, 'UPDATE_CAPABILITY', id);
+    return capability;
+  }
+
+  async deleteCapability(adminId: string, id: string) {
+    await this.requireAdmin(adminId);
+
+    await (this.prisma as any).capability.delete({ where: { id } });
+    await this.logAdminAction(adminId, 'DELETE_CAPABILITY', id);
+
+    return { message: 'Capability deleted successfully' };
+  }
+
+  async reorderCapabilities(adminId: string, ids: string[]) {
+    await this.requireAdmin(adminId);
+
+    await this.prisma.$transaction(
+      ids.map((id, index) =>
+        (this.prisma as any).capability.update({
+          where: { id },
+          data: { orderIndex: index + 1 },
+        }),
+      ),
+    );
+
+    await this.logAdminAction(adminId, 'REORDER_CAPABILITIES', undefined, { ids });
+    return { message: 'Capabilities reordered successfully' };
+  }
+
+  // Supplier Verification
+  async getPendingSuppliers(page: number = 1, limit: number = 20) {
+    const skip = (page - 1) * limit;
+
+    const [suppliers, total] = await Promise.all([
+      (this.prisma as any).supplier.findMany({
+        where: { isVerified: false },
+        skip,
+        take: limit,
+        include: {
+          products: true,
+          owner: {
+            include: {
+              profile: true,
+            },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+      }),
+      (this.prisma as any).supplier.count({ where: { isVerified: false } }),
+    ]);
+
+    return {
+      suppliers,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
+
+  async approveSupplier(adminId: string, supplierId: string) {
+    await this.requireAdmin(adminId);
+
+    const supplier = await (this.prisma as any).supplier.findUnique({
+      where: { id: supplierId },
+    });
+
+    if (!supplier) {
+      throw new NotFoundException('Supplier not found');
+    }
+
+    const updated = await (this.prisma as any).supplier.update({
+      where: { id: supplierId },
+      data: { isVerified: true },
+    });
+
+    await this.logAdminAction(adminId, 'APPROVE_SUPPLIER', supplierId);
+    return updated;
+  }
+
   // Dashboard Stats
   async getDashboardStats() {
     const [
@@ -221,6 +401,9 @@ export class AdminService {
       pendingListings,
       activeMemberships,
       recentPayments,
+      pendingSuppliers,
+      totalBanners,
+      totalCapabilities,
     ] = await Promise.all([
       this.prisma.user.count(),
       this.prisma.listing.count(),
@@ -231,6 +414,9 @@ export class AdminService {
         orderBy: { createdAt: 'desc' },
         include: { user: { include: { profile: true } } },
       }),
+      (this.prisma as any).supplier.count({ where: { isVerified: false } }),
+      (this.prisma as any).banner.count(),
+      (this.prisma as any).capability.count({ where: { isActive: true } }),
     ]);
 
     return {
@@ -238,8 +424,10 @@ export class AdminService {
       totalListings,
       pendingListings,
       activeMemberships,
+      pendingSuppliers,
+      totalBanners,
+      totalCapabilities,
       recentPayments,
     };
   }
 }
-

@@ -11,6 +11,10 @@ import { PaymentModule } from './payment/payment.module';
 import { AdminModule } from './admin/admin.module';
 import { RedisModule } from './redis/redis.module';
 import { SecurityModule } from './security/security.module';
+import { BannersModule } from './banners/banners.module';
+import { CapabilitiesModule } from './capabilities/capabilities.module';
+import { InquiriesModule } from './inquiries/inquiries.module';
+import { SuppliersModule } from './suppliers/suppliers.module';
 
 @Module({
   imports: [
@@ -28,8 +32,11 @@ import { SecurityModule } from './security/security.module';
     OffersModule,
     MembershipModule,
     PaymentModule,
+    BannersModule,
+    CapabilitiesModule,
+    InquiriesModule,
+    SuppliersModule,
     AdminModule,
   ],
 })
 export class AppModule {}
-

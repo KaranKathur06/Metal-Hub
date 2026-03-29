@@ -5,6 +5,8 @@ import {
   Param,
   Body,
   Query,
+  Put,
+  Delete,
   UseGuards,
   Request,
 } from '@nestjs/common';
@@ -64,5 +66,64 @@ export class AdminController {
   ) {
     return this.adminService.featureListing(req.user.id, listingId, body.days || 7);
   }
-}
 
+  @Get('banners')
+  async getBanners() {
+    return this.adminService.getBanners();
+  }
+
+  @Post('banners')
+  async createBanner(@Body() body: any, @Request() req) {
+    return this.adminService.createBanner(req.user.id, body);
+  }
+
+  @Put('banners/:id')
+  async updateBanner(@Param('id') id: string, @Body() body: any, @Request() req) {
+    return this.adminService.updateBanner(req.user.id, id, body);
+  }
+
+  @Delete('banners/:id')
+  async deleteBanner(@Param('id') id: string, @Request() req) {
+    return this.adminService.deleteBanner(req.user.id, id);
+  }
+
+  @Post('banners/reorder')
+  async reorderBanners(@Body() body: { ids: string[] }, @Request() req) {
+    return this.adminService.reorderBanners(req.user.id, body.ids || []);
+  }
+
+  @Get('capabilities')
+  async getCapabilities() {
+    return this.adminService.getCapabilities();
+  }
+
+  @Post('capabilities')
+  async createCapability(@Body() body: any, @Request() req) {
+    return this.adminService.createCapability(req.user.id, body);
+  }
+
+  @Put('capabilities/:id')
+  async updateCapability(@Param('id') id: string, @Body() body: any, @Request() req) {
+    return this.adminService.updateCapability(req.user.id, id, body);
+  }
+
+  @Delete('capabilities/:id')
+  async deleteCapability(@Param('id') id: string, @Request() req) {
+    return this.adminService.deleteCapability(req.user.id, id);
+  }
+
+  @Post('capabilities/reorder')
+  async reorderCapabilities(@Body() body: { ids: string[] }, @Request() req) {
+    return this.adminService.reorderCapabilities(req.user.id, body.ids || []);
+  }
+
+  @Get('suppliers/pending')
+  async getPendingSuppliers(@Query('page') page?: number, @Query('limit') limit?: number) {
+    return this.adminService.getPendingSuppliers(page || 1, limit || 20);
+  }
+
+  @Post('suppliers/:id/approve')
+  async approveSupplier(@Param('id') supplierId: string, @Request() req) {
+    return this.adminService.approveSupplier(req.user.id, supplierId);
+  }
+}

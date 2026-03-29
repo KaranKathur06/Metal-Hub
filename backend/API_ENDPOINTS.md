@@ -402,3 +402,90 @@ Content-Type: application/json
 - `429` - Too Many Requests
 - `500` - Server Error
 
+
+---
+
+## ??? Banner Endpoints
+
+### Get Active Banners
+```
+GET /banners
+```
+
+---
+
+## ?? Capability Endpoints
+
+### Get Active Capabilities
+```
+GET /capabilities
+```
+
+### Get Capability by Slug
+```
+GET /capabilities/:slug
+```
+
+---
+
+## ?? Inquiry Endpoints
+
+### Get Buyer Inquiries
+```
+GET /inquiries?search=&location=&category=&sortBy=latest&page=1&limit=12
+```
+
+### Post Inquiry (Buyer Only)
+```
+POST /inquiries
+Authorization: Bearer <token>
+```
+
+---
+
+## ?? Supplier Endpoints
+
+### Get Supplier Listings
+```
+GET /suppliers?search=&location=&category=&sortBy=verified&page=1&limit=12
+```
+
+### Create/Update Supplier Profile (Seller Only)
+```
+POST /suppliers/profile
+Authorization: Bearer <token>
+```
+
+### Add Supplier Product (Seller Only)
+```
+POST /suppliers/products
+Authorization: Bearer <token>
+```
+
+---
+
+## ??? Admin Content Endpoints (Admin Only)
+
+### Banners
+```
+GET /admin/banners
+POST /admin/banners
+PUT /admin/banners/:id
+DELETE /admin/banners/:id
+POST /admin/banners/reorder
+```
+
+### Capabilities
+```
+GET /admin/capabilities
+POST /admin/capabilities
+PUT /admin/capabilities/:id
+DELETE /admin/capabilities/:id
+POST /admin/capabilities/reorder
+```
+
+### Supplier Verification
+```
+GET /admin/suppliers/pending
+POST /admin/suppliers/:id/approve
+```

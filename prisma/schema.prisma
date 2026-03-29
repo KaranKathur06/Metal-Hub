@@ -37,6 +37,8 @@ model User {
   loginActivities LoginActivity[]
   adminLogs     AdminLog[]
   sentOffers     Offer[] @relation("BuyerOffers")
+  inquiries      Inquiry[]
+  supplierProfile Supplier?
 
   @@index([email])
   @@index([phone])
@@ -367,5 +369,125 @@ model AdminLog {
   @@index([action])
   @@index([createdAt])
   @@map("admin_logs")
+}
+
+// ============================================
+// 13. BANNERS (Homepage Hero Carousel)
+// ============================================
+model Banner {
+  id         String   @id @default(uuid())
+  title      String
+  subtitle   String
+  imageUrl   String   @map("image_url")
+  ctaText    String   @map("cta_text")
+  ctaLink    String   @map("cta_link")
+  isActive   Boolean  @default(true) @map("is_active")
+  orderIndex Int      @default(0) @map("order_index")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@index([isActive, orderIndex])
+  @@map("banners")
+}
+
+// ============================================
+// 14. CAPABILITIES (Industrial Category Hub)
+// ============================================
+model Capability {
+  id           String   @id @default(uuid())
+  name         String
+  slug         String   @unique
+  imageUrl     String   @map("image_url")
+  description  String
+  heroImageUrl String?  @map("hero_image_url")
+  heroTitle    String?  @map("hero_title")
+  heroSubtitle String?  @map("hero_subtitle")
+  isActive     Boolean  @default(true) @map("is_active")
+  orderIndex   Int      @default(0) @map("order_index")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  inquiries        Inquiry[]
+  supplierProducts SupplierProduct[]
+
+  @@index([isActive, orderIndex])
+  @@map("capabilities")
+}
+
+// ============================================
+// 15. INQUIRIES (Buyer Requirements)
+// ============================================
+model Inquiry {
+  id           String        @id @default(uuid())
+  userId       String        @map("user_id")
+  capabilityId String?       @map("capability_id")
+  productName  String        @map("product_name")
+  description  String
+  quantity     String
+  budget       Decimal?      @db.Decimal(12, 2)
+  location     String
+  status       InquiryStatus @default(OPEN)
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
+
+  buyer      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  capability Capability? @relation(fields: [capabilityId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([capabilityId])
+  @@index([location])
+  @@index([status])
+  @@index([createdAt])
+  @@map("inquiries")
+}
+
+enum InquiryStatus {
+  OPEN
+  PAUSED
+  CLOSED
+}
+
+// ============================================
+// 16. SUPPLIERS (Verified Marketplace Sellers)
+// ============================================
+model Supplier {
+  id          String   @id @default(uuid())
+  userId      String?  @unique @map("user_id")
+  companyName String   @map("company_name")
+  description String
+  location    String
+  isVerified  Boolean  @default(false) @map("is_verified")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  owner    User?             @relation(fields: [userId], references: [id], onDelete: SetNull)
+  products SupplierProduct[]
+
+  @@index([isVerified])
+  @@index([location])
+  @@index([createdAt])
+  @@map("suppliers")
+}
+
+// ============================================
+// 17. SUPPLIER_PRODUCTS (Supplier Catalog)
+// ============================================
+model SupplierProduct {
+  id           String   @id @default(uuid())
+  supplierId   String   @map("supplier_id")
+  capabilityId String?  @map("capability_id")
+  productName  String   @map("product_name")
+  priceRange   String   @map("price_range")
+  moq          String
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  supplier   Supplier    @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  capability Capability? @relation(fields: [capabilityId], references: [id], onDelete: SetNull)
+
+  @@index([supplierId])
+  @@index([capabilityId])
+  @@index([createdAt])
+  @@map("supplier_products")
 }
 
