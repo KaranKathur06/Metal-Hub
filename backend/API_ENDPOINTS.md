@@ -489,3 +489,22 @@ POST /admin/capabilities/reorder
 GET /admin/suppliers/pending
 POST /admin/suppliers/:id/approve
 ```
+
+---
+
+## Unified Marketplace Endpoints
+
+### Unified Feed (Buyers/Suppliers)
+```
+GET /marketplace?type=buyers|suppliers&search=&location=india,uae&category=casting,forging&verified=true&moqRange=lt-100&date=last-7d&sort=latest&page=1&limit=10
+```
+
+### Inquiry Detail
+```
+GET /inquiries/:id
+```
+
+### Supplier Detail
+```
+GET /suppliers/:id
+```

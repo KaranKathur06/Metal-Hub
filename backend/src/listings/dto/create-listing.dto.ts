@@ -1,7 +1,7 @@
 import {
   IsString,
   IsNotEmpty,
-  IsEnum,
+  IsIn,
   IsNumber,
   IsBoolean,
   IsOptional,
@@ -9,7 +9,11 @@ import {
   Min,
 } from 'class-validator';
 import { Transform } from 'class-transformer';
-import { ListingRole, ListingType, MembershipPlan, MetalType } from '@prisma/client';
+
+const METAL_TYPES = ['STEEL', 'IRON', 'ALUMINIUM', 'COPPER', 'BRASS', 'STAINLESS_STEEL', 'OTHER'] as const;
+const LISTING_ROLES = ['BUYER', 'SUPPLIER'] as const;
+const LISTING_TYPES = ['BUY_LEADS', 'MEMBERS'] as const;
+const MEMBERSHIP_PLANS = ['FREE', 'SILVER', 'GOLD'] as const;
 
 export class CreateListingDto {
   @IsString()
@@ -20,20 +24,20 @@ export class CreateListingDto {
   @IsNotEmpty()
   description: string;
 
-  @IsEnum(MetalType)
-  metalType: MetalType;
+  @IsIn(METAL_TYPES)
+  metalType: (typeof METAL_TYPES)[number];
 
-  @IsEnum(ListingRole)
+  @IsIn(LISTING_ROLES)
   @IsOptional()
-  listingRole?: ListingRole;
+  listingRole?: (typeof LISTING_ROLES)[number];
 
-  @IsEnum(ListingType)
+  @IsIn(LISTING_TYPES)
   @IsOptional()
-  listingType?: ListingType;
+  listingType?: (typeof LISTING_TYPES)[number];
 
-  @IsEnum(MembershipPlan)
+  @IsIn(MEMBERSHIP_PLANS)
   @IsOptional()
-  premiumStatus?: MembershipPlan;
+  premiumStatus?: (typeof MEMBERSHIP_PLANS)[number];
 
   @IsArray()
   @IsString({ each: true })
@@ -92,9 +96,9 @@ export class UpdateListingDto {
   @IsOptional()
   description?: string;
 
-  @IsEnum(MetalType)
+  @IsIn(METAL_TYPES)
   @IsOptional()
-  metalType?: MetalType;
+  metalType?: (typeof METAL_TYPES)[number];
 
   @IsString()
   @IsOptional()
@@ -155,17 +159,17 @@ export class ListingQueryDto {
   @IsOptional()
   metal?: string[];
 
-  @IsEnum(MetalType)
+  @IsIn(METAL_TYPES)
   @IsOptional()
-  metalType?: MetalType;
+  metalType?: (typeof METAL_TYPES)[number];
 
-  @IsEnum(MembershipPlan)
+  @IsIn(MEMBERSHIP_PLANS)
   @IsOptional()
-  premium?: MembershipPlan;
+  premium?: (typeof MEMBERSHIP_PLANS)[number];
 
-  @IsEnum(ListingType)
+  @IsIn(LISTING_TYPES)
   @IsOptional()
-  listingType?: ListingType;
+  listingType?: (typeof LISTING_TYPES)[number];
 
   @Transform(({ value }) => (typeof value === 'string' ? Number(value) : value))
   @IsNumber()

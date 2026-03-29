@@ -69,7 +69,7 @@ export default async function CapabilityDetailPage({ params }: Props) {
           <h1 className="mt-3 max-w-3xl text-4xl font-bold md:text-5xl">{heroTitle}</h1>
           <p className="mt-5 max-w-2xl text-base text-slate-200 md:text-lg">{heroSubtitle}</p>
           <div className="mt-8">
-            <Link href={`/marketplace?tab=buyers&category=${capability.slug}`}>
+            <Link href={`/marketplace?type=buyers&category=${capability.slug}`}>
               <Button className="h-11 rounded-xl bg-blue-600 px-6 text-white hover:bg-blue-500">
                 Post Inquiry for {capability.name}
               </Button>
@@ -108,7 +108,7 @@ export default async function CapabilityDetailPage({ params }: Props) {
               <p>3. Compare supplier responses</p>
             </div>
             <div className="mt-8">
-              <Link href={`/marketplace?tab=buyers&category=${capability.slug}`}>
+              <Link href={`/marketplace?type=buyers&category=${capability.slug}`}>
                 <Button className="w-full rounded-xl bg-slate-900 text-white hover:bg-slate-800">
                   Start Inquiry
                   <ArrowRight className="ml-2 h-4 w-4" />
@@ -121,3 +121,4 @@ export default async function CapabilityDetailPage({ params }: Props) {
     </div>
   );
 }
+

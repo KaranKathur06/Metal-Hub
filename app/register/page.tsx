@@ -28,7 +28,7 @@ export default function RegisterPage() {
     setTimeout(() => {
       setIsLoading(false)
       if (formData.role === "buyer") {
-        router.push("/listings")
+        router.push("/marketplace")
       } else {
         router.push("/dashboard/seller")
       }
@@ -259,3 +259,4 @@ export default function RegisterPage() {
     </div >
   )
 }
+

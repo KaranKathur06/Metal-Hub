@@ -1,0 +1,165 @@
+﻿
+> metalhub-backend@1.0.0 build
+> nest build
+
+[1m[31mERROR[39m[22m in [1m./src/admin/admin.service.ts:7:10[39m[22m
+TS2305: Module '"@prisma/client"' has no exported member 'UserRole'.
+  [0m [90m  5 |[39m } [36mfrom[39m [32m'@nestjs/common'[39m[33m;[39m
+   [90m  6 |[39m [36mimport[39m { [33mPrismaService[39m } [36mfrom[39m [32m'../prisma/prisma.service'[39m[33m;[39m
+  [31m[1m>[22m[39m[90m  7 |[39m [36mimport[39m { [33mUserRole[39m[33m,[39m [33mListingStatus[39m[33m,[39m [33mUserStatus[39m } [36mfrom[39m [32m'@prisma/client'[39m[33m;[39m
+   [90m    |[39m          [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+   [90m  8 |[39m
+   [90m  9 |[39m [33m@[39m[33mInjectable[39m()
+   [90m 10 |[39m [36mexport[39m [36mclass[39m [33mAdminService[39m {[0m
+
+[1m[31mERROR[39m[22m in [1m./src/admin/admin.service.ts:7:20[39m[22m
+TS2305: Module '"@prisma/client"' has no exported member 'ListingStatus'.
+  [0m [90m  5 |[39m } [36mfrom[39m [32m'@nestjs/common'[39m[33m;[39m
+   [90m  6 |[39m [36mimport[39m { [33mPrismaService[39m } [36mfrom[39m [32m'../prisma/prisma.service'[39m[33m;[39m
+  [31m[1m>[22m[39m[90m  7 |[39m [36mimport[39m { [33mUserRole[39m[33m,[39m [33mListingStatus[39m[33m,[39m [33mUserStatus[39m } [36mfrom[39m [32m'@prisma/client'[39m[33m;[39m
+   [90m    |[39m                    [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+   [90m  8 |[39m
+   [90m  9 |[39m [33m@[39m[33mInjectable[39m()
+   [90m 10 |[39m [36mexport[39m [36mclass[39m [33mAdminService[39m {[0m
+
+[1m[31mERROR[39m[22m in [1m./src/admin/admin.service.ts:7:35[39m[22m
+TS2305: Module '"@prisma/client"' has no exported member 'UserStatus'.
+  [0m [90m  5 |[39m } [36mfrom[39m [32m'@nestjs/common'[39m[33m;[39m
+   [90m  6 |[39m [36mimport[39m { [33mPrismaService[39m } [36mfrom[39m [32m'../prisma/prisma.service'[39m[33m;[39m
+  [31m[1m>[22m[39m[90m  7 |[39m [36mimport[39m { [33mUserRole[39m[33m,[39m [33mListingStatus[39m[33m,[39m [33mUserStatus[39m } [36mfrom[39m [32m'@prisma/client'[39m[33m;[39m
+   [90m    |[39m                                   [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+   [90m  8 |[39m
+   [90m  9 |[39m [33m@[39m[33mInjectable[39m()
+   [90m 10 |[39m [36mexport[39m [36mclass[39m [33mAdminService[39m {[0m
+
+[1m[31mERROR[39m[22m in [1m./src/auth/auth.service.ts:12:10[39m[22m
+TS2305: Module '"@prisma/client"' has no exported member 'UserRole'.
+  [0m [90m 10 |[39m [36mimport[39m [33m*[39m [36mas[39m bcrypt [36mfrom[39m [32m'bcrypt'[39m[33m;[39m
+   [90m 11 |[39m [36mimport[39m { [33mLoginDto[39m[33m,[39m [33mRegisterDto[39m[33m,[39m [33mWhatsAppOTPDto[39m[33m,[39m [33mVerifyOTPDto[39m } [36mfrom[39m [32m'./dto/login.dto'[39m[33m;[39m
+  [31m[1m>[22m[39m[90m 12 |[39m [36mimport[39m { [33mUserRole[39m[33m,[39m [33mUserStatus[39m } [36mfrom[39m [32m'@prisma/client'[39m[33m;[39m
+   [90m    |[39m          [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+   [90m 13 |[39m [36mimport[39m { [33mTwilio[39m } [36mfrom[39m [32m'twilio'[39m[33m;[39m
+   [90m 14 |[39m
+   [90m 15 |[39m [33m@[39m[33mInjectable[39m()[0m
+
+[1m[31mERROR[39m[22m in [1m./src/auth/auth.service.ts:12:20[39m[22m
+TS2305: Module '"@prisma/client"' has no exported member 'UserStatus'.
+  [0m [90m 10 |[39m [36mimport[39m [33m*[39m [36mas[39m bcrypt [36mfrom[39m [32m'bcrypt'[39m[33m;[39m
+   [90m 11 |[39m [36mimport[39m { [33mLoginDto[39m[33m,[39m [33mRegisterDto[39m[33m,[39m [33mWhatsAppOTPDto[39m[33m,[39m [33mVerifyOTPDto[39m } [36mfrom[39m [32m'./dto/login.dto'[39m[33m;[39m
+  [31m[1m>[22m[39m[90m 12 |[39m [36mimport[39m { [33mUserRole[39m[33m,[39m [33mUserStatus[39m } [36mfrom[39m [32m'@prisma/client'[39m[33m;[39m
+   [90m    |[39m                    [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+   [90m 13 |[39m [36mimport[39m { [33mTwilio[39m } [36mfrom[39m [32m'twilio'[39m[33m;[39m
+   [90m 14 |[39m
+   [90m 15 |[39m [33m@[39m[33mInjectable[39m()[0m
+
+[1m[31mERROR[39m[22m in [1m./src/auth/dto/login.dto.ts:2:10[39m[22m
+TS2305: Module '"@prisma/client"' has no exported member 'UserRole'.
+  [0m [90m 1 |[39m [36mimport[39m { [33mIsEmail[39m[33m,[39m [33mIsString[39m[33m,[39m [33mIsOptional[39m[33m,[39m [33mIsEnum[39m[33m,[39m [33mMinLength[39m } [36mfrom[39m [32m'class-validator'[39m[33m;[39m
+  [31m[1m>[22m[39m[90m 2 |[39m [36mimport[39m { [33mUserRole[39m } [36mfrom[39m [32m'@prisma/client'[39m[33m;[39m
+   [90m   |[39m          [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+   [90m 3 |[39m
+   [90m 4 |[39m [36mexport[39m [36mclass[39m [33mLoginDto[39m {
+   [90m 5 |[39m   [33m@[39m[33mIsEmail[39m()[0m
+
+[1m[31mERROR[39m[22m in [1m./src/listings/dto/create-listing.dto.ts:12:10[39m[22m
+TS2305: Module '"@prisma/client"' has no exported member 'ListingRole'.
+  [0m [90m 10 |[39m } [36mfrom[39m [32m'class-validator'[39m[33m;[39m
+   [90m 11 |[39m [36mimport[39m { [33mTransform[39m } [36mfrom[39m [32m'class-transformer'[39m[33m;[39m
+  [31m[1m>[22m[39m[90m 12 |[39m [36mimport[39m { [33mListingRole[39m[33m,[39m [33mListingType[39m[33m,[39m [33mMembershipPlan[39m[33m,[39m [33mMetalType[39m } [36mfrom[39m [32m'@prisma/client'[39m[33m;[39m
+   [90m    |[39m          [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+   [90m 13 |[39m
+   [90m 14 |[39m [36mexport[39m [36mclass[39m [33mCreateListingDto[39m {
+   [90m 15 |[39m   [33m@[39m[33mIsString[39m()[0m
+
+[1m[31mERROR[39m[22m in [1m./src/listings/dto/create-listing.dto.ts:12:23[39m[22m
+TS2305: Module '"@prisma/client"' has no exported member 'ListingType'.
+  [0m [90m 10 |[39m } [36mfrom[39m [32m'class-validator'[39m[33m;[39m
+   [90m 11 |[39m [36mimport[39m { [33mTransform[39m } [36mfrom[39m [32m'class-transformer'[39m[33m;[39m
+  [31m[1m>[22m[39m[90m 12 |[39m [36mimport[39m { [33mListingRole[39m[33m,[39m [33mListingType[39m[33m,[39m [33mMembershipPlan[39m[33m,[39m [33mMetalType[39m } [36mfrom[39m [32m'@prisma/client'[39m[33m;[39m
+   [90m    |[39m                       [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+   [90m 13 |[39m
+   [90m 14 |[39m [36mexport[39m [36mclass[39m [33mCreateListingDto[39m {
+   [90m 15 |[39m   [33m@[39m[33mIsString[39m()[0m
+
+[1m[31mERROR[39m[22m in [1m./src/listings/dto/create-listing.dto.ts:12:36[39m[22m
+TS2305: Module '"@prisma/client"' has no exported member 'MembershipPlan'.
+  [0m [90m 10 |[39m } [36mfrom[39m [32m'class-validator'[39m[33m;[39m
+   [90m 11 |[39m [36mimport[39m { [33mTransform[39m } [36mfrom[39m [32m'class-transformer'[39m[33m;[39m
+  [31m[1m>[22m[39m[90m 12 |[39m [36mimport[39m { [33mListingRole[39m[33m,[39m [33mListingType[39m[33m,[39m [33mMembershipPlan[39m[33m,[39m [33mMetalType[39m } [36mfrom[39m [32m'@prisma/client'[39m[33m;[39m
+   [90m    |[39m                                    [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+   [90m 13 |[39m
+   [90m 14 |[39m [36mexport[39m [36mclass[39m [33mCreateListingDto[39m {
+   [90m 15 |[39m   [33m@[39m[33mIsString[39m()[0m
+
+[1m[31mERROR[39m[22m in [1m./src/listings/dto/create-listing.dto.ts:12:52[39m[22m
+TS2305: Module '"@prisma/client"' has no exported member 'MetalType'.
+  [0m [90m 10 |[39m } [36mfrom[39m [32m'class-validator'[39m[33m;[39m
+   [90m 11 |[39m [36mimport[39m { [33mTransform[39m } [36mfrom[39m [32m'class-transformer'[39m[33m;[39m
+  [31m[1m>[22m[39m[90m 12 |[39m [36mimport[39m { [33mListingRole[39m[33m,[39m [33mListingType[39m[33m,[39m [33mMembershipPlan[39m[33m,[39m [33mMetalType[39m } [36mfrom[39m [32m'@prisma/client'[39m[33m;[39m
+   [90m    |[39m                                                    [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+   [90m 13 |[39m
+   [90m 14 |[39m [36mexport[39m [36mclass[39m [33mCreateListingDto[39m {
+   [90m 15 |[39m   [33m@[39m[33mIsString[39m()[0m
+
+[1m[31mERROR[39m[22m in [1m./src/listings/listings.service.ts:9:10[39m[22m
+TS2305: Module '"@prisma/client"' has no exported member 'ListingStatus'.
+  [0m [90m  7 |[39m [36mimport[39m { [33mPrismaService[39m } [36mfrom[39m [32m'../prisma/prisma.service'[39m[33m;[39m
+   [90m  8 |[39m [36mimport[39m { [33mCreateListingDto[39m[33m,[39m [33mUpdateListingDto[39m[33m,[39m [33mListingQueryDto[39m } [36mfrom[39m [32m'./dto/create-listing.dto'[39m[33m;[39m
+  [31m[1m>[22m[39m[90m  9 |[39m [36mimport[39m { [33mListingStatus[39m[33m,[39m [33mMetalType[39m } [36mfrom[39m [32m'@prisma/client'[39m[33m;[39m
+   [90m    |[39m          [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+   [90m 10 |[39m
+   [90m 11 |[39m [33m@[39m[33mInjectable[39m()
+   [90m 12 |[39m [36mexport[39m [36mclass[39m [33mListingsService[39m {[0m
+
+[1m[31mERROR[39m[22m in [1m./src/listings/listings.service.ts:9:25[39m[22m
+TS2305: Module '"@prisma/client"' has no exported member 'MetalType'.
+  [0m [90m  7 |[39m [36mimport[39m { [33mPrismaService[39m } [36mfrom[39m [32m'../prisma/prisma.service'[39m[33m;[39m
+   [90m  8 |[39m [36mimport[39m { [33mCreateListingDto[39m[33m,[39m [33mUpdateListingDto[39m[33m,[39m [33mListingQueryDto[39m } [36mfrom[39m [32m'./dto/create-listing.dto'[39m[33m;[39m
+  [31m[1m>[22m[39m[90m  9 |[39m [36mimport[39m { [33mListingStatus[39m[33m,[39m [33mMetalType[39m } [36mfrom[39m [32m'@prisma/client'[39m[33m;[39m
+   [90m    |[39m                         [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+   [90m 10 |[39m
+   [90m 11 |[39m [33m@[39m[33mInjectable[39m()
+   [90m 12 |[39m [36mexport[39m [36mclass[39m [33mListingsService[39m {[0m
+
+[1m[31mERROR[39m[22m in [1m./src/main.ts:11:11[39m[22m
+TS2349: This expression is not callable.
+  Type 'typeof import("C:/STUDY/FREELANCING PROJECTS/METAL HUB/backend/node_modules/helmet/index")' has no call signatures.
+  [0m [90m  9 |[39m
+   [90m 10 |[39m   [90m// Security[39m
+  [31m[1m>[22m[39m[90m 11 |[39m   app[33m.[39muse(helmet())[33m;[39m
+   [90m    |[39m           [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+   [90m 12 |[39m   app[33m.[39muse(cookieParser())[33m;[39m
+   [90m 13 |[39m
+   [90m 14 |[39m   [90m// CORS[39m[0m
+
+[1m[31mERROR[39m[22m in [1m./src/membership/membership.service.ts:3:10[39m[22m
+TS2305: Module '"@prisma/client"' has no exported member 'MembershipPlan'.
+  [0m [90m 1 |[39m [36mimport[39m { [33mInjectable[39m[33m,[39m [33mNotFoundException[39m[33m,[39m [33mBadRequestException[39m } [36mfrom[39m [32m'@nestjs/common'[39m[33m;[39m
+   [90m 2 |[39m [36mimport[39m { [33mPrismaService[39m } [36mfrom[39m [32m'../prisma/prisma.service'[39m[33m;[39m
+  [31m[1m>[22m[39m[90m 3 |[39m [36mimport[39m { [33mMembershipPlan[39m } [36mfrom[39m [32m'@prisma/client'[39m[33m;[39m
+   [90m   |[39m          [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+   [90m 4 |[39m
+   [90m 5 |[39m [33m@[39m[33mInjectable[39m()
+   [90m 6 |[39m [36mexport[39m [36mclass[39m [33mMembershipService[39m {[0m
+
+[1m[31mERROR[39m[22m in [1m./src/payment/payment.controller.ts:12:10[39m[22m
+TS2305: Module '"@prisma/client"' has no exported member 'MembershipPlan'.
+  [0m [90m 10 |[39m [36mimport[39m { [33mPaymentService[39m } [36mfrom[39m [32m'./payment.service'[39m[33m;[39m
+   [90m 11 |[39m [36mimport[39m { [33mJwtAuthGuard[39m } [36mfrom[39m [32m'../auth/guards/jwt-auth.guard'[39m[33m;[39m
+  [31m[1m>[22m[39m[90m 12 |[39m [36mimport[39m { [33mMembershipPlan[39m } [36mfrom[39m [32m'@prisma/client'[39m[33m;[39m
+   [90m    |[39m          [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+   [90m 13 |[39m
+   [90m 14 |[39m [33m@[39m[33mController[39m([32m'payment'[39m)
+   [90m 15 |[39m [36mexport[39m [36mclass[39m [33mPaymentController[39m {[0m
+
+[1m[31mERROR[39m[22m in [1m./src/payment/payment.service.ts:6:10[39m[22m
+TS2305: Module '"@prisma/client"' has no exported member 'MembershipPlan'.
+  [0m [90m 4 |[39m [36mimport[39m [33mRazorpay[39m [36mfrom[39m [32m'razorpay'[39m[33m;[39m
+   [90m 5 |[39m [36mimport[39m crypto [36mfrom[39m [32m'crypto'[39m[33m;[39m
+  [31m[1m>[22m[39m[90m 6 |[39m [36mimport[39m { [33mMembershipPlan[39m } [36mfrom[39m [32m'@prisma/client'[39m[33m;[39m
+   [90m   |[39m          [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+   [90m 7 |[39m
+   [90m 8 |[39m [33m@[39m[33mInjectable[39m()
+   [90m 9 |[39m [36mexport[39m [36mclass[39m [33mPaymentService[39m {[0m
+
+webpack 5.97.1 compiled with [1m[31m16 errors[39m[22m in 6578 ms

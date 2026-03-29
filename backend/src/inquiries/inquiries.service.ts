@@ -1,6 +1,26 @@
-import { ForbiddenException, Injectable } from '@nestjs/common';
+import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateInquiryDto, InquiryQueryDto } from './dto/inquiry.dto';
+
+function getDateCutoff(dateFilter?: 'last-24h' | 'last-7d' | 'last-30d') {
+  if (!dateFilter) return undefined;
+
+  const now = new Date();
+  const cutoff = new Date(now);
+
+  if (dateFilter === 'last-24h') {
+    cutoff.setHours(now.getHours() - 24);
+    return cutoff;
+  }
+
+  if (dateFilter === 'last-7d') {
+    cutoff.setDate(now.getDate() - 7);
+    return cutoff;
+  }
+
+  cutoff.setDate(now.getDate() - 30);
+  return cutoff;
+}
 
 @Injectable()
 export class InquiriesService {
@@ -8,7 +28,7 @@ export class InquiriesService {
 
   async findAll(query: InquiryQueryDto) {
     const page = query.page || 1;
-    const limit = Math.min(query.limit || 12, 20);
+    const limit = Math.min(query.limit || 10, 20);
     const skip = (page - 1) * limit;
 
     const where: any = {
@@ -22,24 +42,39 @@ export class InquiriesService {
       ];
     }
 
-    if (query.location) {
-      where.location = { contains: query.location, mode: 'insensitive' };
+    if (query.location && query.location.length > 0) {
+      where.AND = [
+        ...(where.AND || []),
+        {
+          OR: query.location.map((location) => ({
+            location: { contains: location, mode: 'insensitive' },
+          })),
+        },
+      ];
     }
 
-    if (query.category) {
-      where.capability = {
-        slug: query.category,
+    if (query.category && query.category.length > 0) {
+      where.category = {
+        in: query.category.map((item) => item.toLowerCase()),
       };
     }
 
-    let orderBy: any = [{ createdAt: 'desc' }];
-
-    if (query.sortBy === 'price') {
-      orderBy = [{ budget: 'desc' }, { createdAt: 'desc' }];
+    if (typeof query.verified === 'boolean') {
+      where.buyer = {
+        profile: {
+          kycStatus: query.verified ? 'VERIFIED' : { not: 'VERIFIED' },
+        },
+      };
     }
 
-    if (query.sortBy === 'verified') {
-      orderBy = [{ createdAt: 'desc' }];
+    const cutoff = getDateCutoff(query.date);
+    if (cutoff) {
+      where.createdAt = { gte: cutoff };
+    }
+
+    const orderBy: any[] = [{ createdAt: 'desc' }];
+    if (query.sortBy === 'price') {
+      orderBy.unshift({ budget: 'desc' });
     }
 
     const [inquiries, total] = await Promise.all([
@@ -95,20 +130,45 @@ export class InquiriesService {
     };
   }
 
+  async findOne(id: string) {
+    const inquiry = await (this.prisma as any).inquiry.findUnique({
+      where: { id },
+      include: {
+        capability: true,
+        buyer: {
+          select: {
+            id: true,
+            email: true,
+            profile: true,
+          },
+        },
+      },
+    });
+
+    if (!inquiry) {
+      throw new NotFoundException('Inquiry not found');
+    }
+
+    return inquiry;
+  }
+
   async create(user: any, dto: CreateInquiryDto) {
     if (user.role !== 'BUYER') {
       throw new ForbiddenException('Only buyers can post inquiries');
     }
 
-    let capabilityId: string | undefined;
+    const normalizedCategory = dto.category.toLowerCase();
 
-    if (dto.category) {
-      const capability = await (this.prisma as any).capability.findUnique({
-        where: { slug: dto.category },
-        select: { id: true },
-      });
-      capabilityId = capability?.id;
-    }
+    const capability = await (this.prisma as any).capability.findFirst({
+      where: {
+        OR: [{ slug: normalizedCategory }, { name: { equals: dto.category, mode: 'insensitive' } }],
+      },
+      select: { id: true, slug: true },
+    });
+
+    const budgetRange =
+      dto.budgetRange ||
+      (typeof dto.budget === 'number' ? `Approx INR ${Math.round(dto.budget).toLocaleString('en-IN')}` : 'Open');
 
     return (this.prisma as any).inquiry.create({
       data: {
@@ -117,8 +177,11 @@ export class InquiriesService {
         description: dto.description,
         quantity: dto.quantity,
         budget: dto.budget,
+        budgetRange,
         location: dto.location,
-        capabilityId,
+        category: capability?.slug || normalizedCategory,
+        capabilityId: capability?.id,
+        urgency: dto.urgency || 'MEDIUM',
         status: 'OPEN',
       },
       include: {

@@ -65,7 +65,7 @@ export default async function HomePage() {
           {featuredListings.map((listing) => (
             <Link
               key={listing.id}
-              href={`/listings/${listing.id}`}
+              href={`/marketplace?type=suppliers&search=${encodeURIComponent(listing.title)}` }
               className="group relative flex h-full flex-col overflow-hidden rounded-2xl border border-border/60 bg-gradient-to-br from-white to-slate-50 transition-all duration-300 hover:-translate-y-2 hover:shadow-[0_20px_40px_rgba(0,0,0,0.12)]"
             >
               <div className="relative aspect-[4/3] w-full bg-slate-200">
@@ -164,3 +164,4 @@ export default async function HomePage() {
     </div>
   );
 }
+

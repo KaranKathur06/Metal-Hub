@@ -1,55 +1,68 @@
-import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
+import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import Redis from 'ioredis';
 
 @Injectable()
 export class RedisService implements OnModuleInit, OnModuleDestroy {
   private client: Redis;
+  private isAvailable = false;
 
   constructor(private configService: ConfigService) {
     this.client = new Redis({
       host: this.configService.get('REDIS_HOST', 'localhost'),
       port: this.configService.get('REDIS_PORT', 6379),
       password: this.configService.get('REDIS_PASSWORD'),
-      retryStrategy: (times) => {
-        const delay = Math.min(times * 50, 2000);
-        return delay;
-      },
+      lazyConnect: true,
+      maxRetriesPerRequest: 1,
+      retryStrategy: () => null,
+    });
+
+    this.client.on('connect', () => {
+      this.isAvailable = true;
+      console.log('Redis connected');
+    });
+
+    this.client.on('error', (error) => {
+      this.isAvailable = false;
+      console.error('Redis error:', error?.message || error);
     });
   }
 
   async onModuleInit() {
-    this.client.on('connect', () => {
-      console.log('✅ Redis connected');
-    });
-
-    this.client.on('error', (err) => {
-      console.error('❌ Redis error:', err);
-    });
+    try {
+      await this.client.connect();
+      this.isAvailable = true;
+    } catch {
+      this.isAvailable = false;
+      console.error('Redis unavailable. Running in no-cache mode.');
+    }
   }
 
   async onModuleDestroy() {
-    await this.client.quit();
+    if (this.client.status !== 'end') {
+      await this.client.quit();
+    }
   }
 
   // OTP Methods
   async setOTP(phone: string, otp: string, expiryMinutes: number = 10): Promise<void> {
-    const key = `otp:${phone}`;
-    await this.client.setex(key, expiryMinutes * 60, otp);
+    if (!this.isAvailable) return;
+    await this.client.setex(`otp:${phone}`, expiryMinutes * 60, otp);
   }
 
   async getOTP(phone: string): Promise<string | null> {
-    const key = `otp:${phone}`;
-    return await this.client.get(key);
+    if (!this.isAvailable) return null;
+    return this.client.get(`otp:${phone}`);
   }
 
   async deleteOTP(phone: string): Promise<void> {
-    const key = `otp:${phone}`;
-    await this.client.del(key);
+    if (!this.isAvailable) return;
+    await this.client.del(`otp:${phone}`);
   }
 
   // Rate Limiting
   async incrementLoginAttempts(ip: string, windowMs: number = 900000): Promise<number> {
+    if (!this.isAvailable) return 0;
     const key = `login_attempts:${ip}`;
     const count = await this.client.incr(key);
     if (count === 1) {
@@ -59,54 +72,57 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
   }
 
   async getLoginAttempts(ip: string): Promise<number> {
-    const key = `login_attempts:${ip}`;
-    const count = await this.client.get(key);
-    return count ? parseInt(count, 10) : 0;
+    if (!this.isAvailable) return 0;
+    const count = await this.client.get(`login_attempts:${ip}`);
+    return count ? Number.parseInt(count, 10) : 0;
   }
 
   async resetLoginAttempts(ip: string): Promise<void> {
-    const key = `login_attempts:${ip}`;
-    await this.client.del(key);
+    if (!this.isAvailable) return;
+    await this.client.del(`login_attempts:${ip}`);
   }
 
   // Trial Tracking
   async setTrialUsed(deviceHash: string): Promise<void> {
-    const key = `trial_used:${deviceHash}`;
-    await this.client.set(key, '1');
+    if (!this.isAvailable) return;
+    await this.client.set(`trial_used:${deviceHash}`, '1');
   }
 
   async hasTrialBeenUsed(deviceHash: string): Promise<boolean> {
-    const key = `trial_used:${deviceHash}`;
-    const exists = await this.client.exists(key);
+    if (!this.isAvailable) return false;
+    const exists = await this.client.exists(`trial_used:${deviceHash}`);
     return exists === 1;
   }
 
   // Session Blacklist
   async blacklistToken(token: string, expirySeconds: number): Promise<void> {
-    const key = `session_blacklist:${token}`;
-    await this.client.setex(key, expirySeconds, '1');
+    if (!this.isAvailable) return;
+    await this.client.setex(`session_blacklist:${token}`, expirySeconds, '1');
   }
 
   async isTokenBlacklisted(token: string): Promise<boolean> {
-    const key = `session_blacklist:${token}`;
-    const exists = await this.client.exists(key);
+    if (!this.isAvailable) return false;
+    const exists = await this.client.exists(`session_blacklist:${token}`);
     return exists === 1;
   }
 
-  // Generic Redis methods
+  // Generic Redis Methods
   async get(key: string): Promise<string | null> {
-    return await this.client.get(key);
+    if (!this.isAvailable) return null;
+    return this.client.get(key);
   }
 
   async set(key: string, value: string, expirySeconds?: number): Promise<void> {
+    if (!this.isAvailable) return;
     if (expirySeconds) {
       await this.client.setex(key, expirySeconds, value);
-    } else {
-      await this.client.set(key, value);
+      return;
     }
+    await this.client.set(key, value);
   }
 
   async del(key: string): Promise<void> {
+    if (!this.isAvailable) return;
     await this.client.del(key);
   }
 
@@ -114,4 +130,3 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     return this.client;
   }
 }
-

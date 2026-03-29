@@ -116,7 +116,7 @@ export function Header() {
                       {INDUSTRIES.map((item) => (
                         <Link
                           key={item.value}
-                          href={`/listings?industry=${item.value}`}
+                          href={`/marketplace?type=suppliers&search=${item.value}`}
                           className="rounded-md px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 hover:text-slate-900"
                         >
                           {item.label}
@@ -140,7 +140,7 @@ export function Header() {
                       {PRODUCTS.map((item) => (
                         <Link
                           key={item.value}
-                          href={`/suppliers?metal=${item.value}`}
+                          href={`/marketplace?type=suppliers&search=${item.value}`}
                           className="rounded-md px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 hover:text-slate-900"
                         >
                           {item.label}
@@ -273,3 +273,4 @@ export function Header() {
     </header>
   );
 }
+

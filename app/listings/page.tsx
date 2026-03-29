@@ -1,26 +1,5 @@
-import ListingsSearchClient from "@/components/search/ListingsSearchClient"
-import { buildListingsMetadata } from "@/lib/seo"
-import { Suspense } from "react"
-
-export const dynamic = "force-dynamic"
-
-export const generateMetadata = ({
-  searchParams,
-}: {
-  searchParams: Record<string, string | string[] | undefined>
-}) => {
-  return buildListingsMetadata({
-    mode: "directory",
-    searchParams,
-    pathname: "/listings",
-  })
-}
+import { redirect } from 'next/navigation';
 
 export default function ListingsPage() {
-  return (
-    <Suspense>
-      <ListingsSearchClient mode="directory" />
-    </Suspense>
-  )
+  redirect('/marketplace');
 }
-

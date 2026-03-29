@@ -1,25 +1,37 @@
 import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ConfigService } from '@nestjs/config';
-import Razorpay from 'razorpay';
 import crypto from 'crypto';
 import { MembershipPlan } from '@prisma/client';
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const Razorpay = require('razorpay');
 
 @Injectable()
 export class PaymentService {
-  private razorpay: Razorpay;
+  private razorpay: any;
 
   constructor(
     private prisma: PrismaService,
     private configService: ConfigService,
   ) {
-    this.razorpay = new Razorpay({
-      key_id: this.configService.get('RAZORPAY_KEY_ID'),
-      key_secret: this.configService.get('RAZORPAY_KEY_SECRET'),
-    });
+    const keyId = this.configService.get('RAZORPAY_KEY_ID');
+    const keySecret = this.configService.get('RAZORPAY_KEY_SECRET');
+
+    if (keyId && keySecret) {
+      this.razorpay = new Razorpay({
+        key_id: keyId,
+        key_secret: keySecret,
+      });
+    } else {
+      this.razorpay = null;
+    }
   }
 
   async createOrder(userId: string, plan: MembershipPlan) {
+    if (!this.razorpay) {
+      throw new BadRequestException('Payment gateway is not configured');
+    }
+
     const planPrices = {
       FREE: 0,
       SILVER: 99900, // ₹999 in paise

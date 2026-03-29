@@ -76,7 +76,7 @@ export default function HeroRoleSearchClient() {
             Post Requirement
           </Button>
         </Link>
-        <Link href="/listings">
+        <Link href="/marketplace">
           <Button variant="outline" className="h-[48px] rounded-[12px] bg-transparent text-white border-[#475569] hover:bg-[#475569]/20 hover:border-[#94a3b8] backdrop-blur-md px-[20px] font-bold shadow-lg hover:-translate-y-0.5 transition-transform w-full sm:w-auto">
             Explore Listings
           </Button>
@@ -85,3 +85,4 @@ export default function HeroRoleSearchClient() {
     </div>
   )
 }
+

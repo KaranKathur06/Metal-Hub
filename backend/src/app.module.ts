@@ -15,6 +15,7 @@ import { BannersModule } from './banners/banners.module';
 import { CapabilitiesModule } from './capabilities/capabilities.module';
 import { InquiriesModule } from './inquiries/inquiries.module';
 import { SuppliersModule } from './suppliers/suppliers.module';
+import { MarketplaceModule } from './marketplace/marketplace.module';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { SuppliersModule } from './suppliers/suppliers.module';
     CapabilitiesModule,
     InquiriesModule,
     SuppliersModule,
+    MarketplaceModule,
     AdminModule,
   ],
 })

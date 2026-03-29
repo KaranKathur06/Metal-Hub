@@ -28,7 +28,7 @@ export default function IndustriesPage() {
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {Industries.map((s) => (
-          <Link key={s.slug} href={`/listings?industry=${s.slug}`}>
+          <Link key={s.slug} href={`/marketplace?type=suppliers&search=${s.slug}`}>
             <Card className="transition-all hover:shadow-lg">
               <CardHeader>
                 <CardTitle className="text-base">{s.title}</CardTitle>
@@ -40,3 +40,4 @@ export default function IndustriesPage() {
     </div>
   )
 }
+

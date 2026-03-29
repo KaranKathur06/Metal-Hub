@@ -154,6 +154,7 @@ export default function AdminDashboardPage() {
 
   useEffect(() => {
     loadAll();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
   const createBanner = async () => {
@@ -568,3 +569,5 @@ export default function AdminDashboardPage() {
     </div>
   );
 }
+
+

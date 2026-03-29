@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Query, Request, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query, Request, UseGuards } from '@nestjs/common';
 import { InquiriesService } from './inquiries.service';
 import { CreateInquiryDto, InquiryQueryDto } from './dto/inquiry.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -10,6 +10,11 @@ export class InquiriesController {
   @Get()
   async findAll(@Query() query: InquiryQueryDto) {
     return this.inquiriesService.findAll(query);
+  }
+
+  @Get(':id')
+  async findOne(@Param('id') id: string) {
+    return this.inquiriesService.findOne(id);
   }
 
   @Post()

@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Query, Request, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query, Request, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { SuppliersService } from './suppliers.service';
 import {
@@ -20,6 +20,11 @@ export class SuppliersController {
   @UseGuards(JwtAuthGuard)
   async getMine(@Request() req) {
     return this.suppliersService.getMyProfile(req.user);
+  }
+
+  @Get(':id')
+  async findOne(@Param('id') id: string) {
+    return this.suppliersService.findOne(id);
   }
 
   @Post('profile')

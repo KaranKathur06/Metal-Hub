@@ -9,7 +9,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { RedisService } from '../redis/redis.service';
 import * as bcrypt from 'bcrypt';
 import { LoginDto, RegisterDto, WhatsAppOTPDto, VerifyOTPDto } from './dto/login.dto';
-import { UserRole, UserStatus } from '@prisma/client';
+import { UserStatus } from '@prisma/client';
 import { Twilio } from 'twilio';
 
 @Injectable()

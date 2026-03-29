@@ -2,7 +2,9 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module';
 import * as cookieParser from 'cookie-parser';
-import * as helmet from 'helmet';
+import helmet from 'helmet';
+import { PrismaInitializationFilter } from './common/filters/prisma-exception.filter';
+import { GlobalExceptionFilter } from './common/filters/global-exception.filter';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -25,14 +27,15 @@ async function bootstrap() {
       transform: true,
     }),
   );
+  app.useGlobalFilters(new PrismaInitializationFilter());
+  app.useGlobalFilters(new GlobalExceptionFilter());
 
   // Global prefix
   app.setGlobalPrefix('api');
 
-  const port = process.env.PORT || 3001;
+  const port = process.env.PORT || 5000;
   await app.listen(port);
-  console.log(`🚀 MetalHub Backend running on http://localhost:${port}`);
+  console.log(`MetalHub Backend running on http://localhost:${port}`);
 }
 
 bootstrap();
-
