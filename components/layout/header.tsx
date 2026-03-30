@@ -92,7 +92,7 @@ export function Header() {
                       {CAPABILITIES.map((item) => (
                         <Link
                           key={item.value}
-                          href={`/capabilities/${item.value}`}
+                          href={`/marketplace?type=suppliers&capability=${item.value}`}
                           className="rounded-md px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 hover:text-slate-900"
                         >
                           {item.label}
@@ -116,7 +116,7 @@ export function Header() {
                       {INDUSTRIES.map((item) => (
                         <Link
                           key={item.value}
-                          href={`/marketplace?type=suppliers&search=${item.value}`}
+                          href={`/marketplace?type=suppliers&industry=${item.value}`}
                           className="rounded-md px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 hover:text-slate-900"
                         >
                           {item.label}
@@ -200,7 +200,7 @@ export function Header() {
                   {CAPABILITIES.map((item) => (
                     <DropdownMenu.Item key={`cap-${item.value}`} asChild>
                       <Link
-                        href={`/capabilities/${item.value}`}
+                        href={`/marketplace?type=suppliers&capability=${item.value}`}
                         className="block rounded-md px-3 py-2 text-sm outline-none hover:bg-slate-50"
                       >
                         {item.label}

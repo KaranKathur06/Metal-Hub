@@ -9,24 +9,30 @@ export class RateLimitMiddleware implements NestMiddleware {
   async use(req: Request, res: Response, next: NextFunction) {
     const ip = req.ip || req.socket.remoteAddress || 'unknown';
     const key = `rate_limit:${ip}`;
-    const windowMs = parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000'); // 15 minutes
+    const windowMs = parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000');
     const maxRequests = parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '100');
 
-    const count = await this.redis.getClient().incr(key);
-    if (count === 1) {
-      await this.redis.getClient().pexpire(key, windowMs);
+    try {
+      const client = this.redis.getClient();
+      const count = await client.incr(key);
+      if (count === 1) {
+        await client.pexpire(key, windowMs);
+      }
+
+      if (count > maxRequests) {
+        return res.status(429).json({
+          message: 'Too many requests, please try again later',
+        });
+      }
+
+      res.setHeader('X-RateLimit-Limit', maxRequests);
+      res.setHeader('X-RateLimit-Remaining', Math.max(0, maxRequests - count));
+      return next();
+    } catch {
+      // Redis may be offline in local/demo environments; keep APIs available.
+      res.setHeader('X-RateLimit-Limit', maxRequests);
+      res.setHeader('X-RateLimit-Remaining', maxRequests);
+      return next();
     }
-
-    if (count > maxRequests) {
-      return res.status(429).json({
-        message: 'Too many requests, please try again later',
-      });
-    }
-
-    res.setHeader('X-RateLimit-Limit', maxRequests);
-    res.setHeader('X-RateLimit-Remaining', Math.max(0, maxRequests - count));
-
-    next();
   }
 }
-

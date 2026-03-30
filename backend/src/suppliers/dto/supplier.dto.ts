@@ -31,6 +31,14 @@ export class SupplierQueryDto {
   category?: string[];
 
   @IsOptional()
+  @Transform(({ value }) => toStringArray(value))
+  capability?: string[];
+
+  @IsOptional()
+  @Transform(({ value }) => toStringArray(value))
+  industry?: string[];
+
+  @IsOptional()
   @IsBoolean()
   @Transform(({ value }) =>
     value === true || value === 'true' || value === 1 || value === '1'
@@ -50,8 +58,8 @@ export class SupplierQueryDto {
   date?: 'last-24h' | 'last-7d' | 'last-30d';
 
   @IsOptional()
-  @IsIn(['latest', 'verified', 'price', 'rating'])
-  sortBy?: 'latest' | 'verified' | 'price' | 'rating';
+  @IsIn(['latest', 'verified', 'price', 'rating', 'response', 'completion'])
+  sortBy?: 'latest' | 'verified' | 'price' | 'rating' | 'response' | 'completion';
 
   @Transform(({ value }) => Number(value))
   @IsOptional()
@@ -70,11 +78,23 @@ export class UpsertSupplierProfileDto {
   @IsString()
   companyName: string;
 
+  @IsOptional()
+  @IsString()
+  tagline?: string;
+
   @IsString()
   description: string;
 
   @IsString()
   location: string;
+
+  @IsOptional()
+  @IsBoolean()
+  isoCertified?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  exportReady?: boolean;
 }
 
 export class CreateSupplierProductDto {
@@ -83,6 +103,10 @@ export class CreateSupplierProductDto {
 
   @IsString()
   category: string;
+
+  @IsOptional()
+  @IsString()
+  material?: string;
 
   @IsString()
   priceRange: string;

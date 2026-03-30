@@ -408,9 +408,44 @@ model Capability {
 
   inquiries        Inquiry[]
   supplierProducts SupplierProduct[]
+  supplierLinks    SupplierCapability[]
+  productLinks     ProductCapability[]
+  requirementLinks RequirementCapability[]
 
   @@index([isActive, orderIndex])
   @@map("capabilities")
+}
+
+model Industry {
+  id        String   @id @default(uuid())
+  name      String
+  slug      String   @unique
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  suppliers SupplierIndustry[]
+  inquiries Inquiry[]
+
+  @@index([name])
+  @@map("industries")
+}
+
+model Category {
+  id        String    @id @default(uuid())
+  name      String
+  slug      String    @unique
+  parentId  String?   @map("parent_id")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+
+  parent      Category?        @relation("CategoryHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  children    Category[]       @relation("CategoryHierarchy")
+  products    SupplierProduct[]
+  inquiries   Inquiry[]
+
+  @@index([name])
+  @@index([parentId])
+  @@map("categories")
 }
 
 // ============================================
@@ -420,23 +455,34 @@ model Inquiry {
   id           String        @id @default(uuid())
   userId       String        @map("user_id")
   capabilityId String?       @map("capability_id")
+  industryId   String?       @map("industry_id")
+  categoryId   String?       @map("category_id")
   category     String
   productName  String        @map("product_name")
   description  String
+  material     String?
+  specDocUrls  String[]      @default([]) @map("spec_doc_urls")
   quantity     String
   budget       Decimal?      @db.Decimal(12, 2)
   budgetRange  String?       @map("budget_range")
   location     String
   urgency      String        @default("MEDIUM")
+  viewsCount   Int           @default(0) @map("views_count")
+  quoteCount   Int           @default(0) @map("quote_count")
   status       InquiryStatus @default(OPEN)
   createdAt    DateTime      @default(now()) @map("created_at")
   updatedAt    DateTime      @updatedAt @map("updated_at")
 
-  buyer      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  capability Capability? @relation(fields: [capabilityId], references: [id], onDelete: SetNull)
+  buyer               User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  capability          Capability?             @relation(fields: [capabilityId], references: [id], onDelete: SetNull)
+  industry            Industry?               @relation(fields: [industryId], references: [id], onDelete: SetNull)
+  categoryRef         Category?               @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  capabilityMappings  RequirementCapability[]
 
   @@index([userId])
   @@index([capabilityId])
+  @@index([industryId])
+  @@index([categoryId])
   @@index([category])
   @@index([location])
   @@index([status])
@@ -457,15 +503,22 @@ model Supplier {
   id          String   @id @default(uuid())
   userId      String?  @unique @map("user_id")
   companyName String   @map("company_name")
+  tagline     String?
   description String
   location    String
   isVerified  Boolean  @default(false) @map("is_verified")
+  isoCertified Boolean @default(false) @map("iso_certified")
+  exportReady  Boolean @default(false) @map("export_ready")
+  responseTimeMinutes Int @default(120) @map("response_time_minutes")
+  completionRate Float @default(78) @map("completion_rate")
   rating      Decimal  @default(4.2) @db.Decimal(2, 1)
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
-  owner    User?             @relation(fields: [userId], references: [id], onDelete: SetNull)
-  products SupplierProduct[]
+  owner            User?                @relation(fields: [userId], references: [id], onDelete: SetNull)
+  products         SupplierProduct[]
+  capabilityLinks  SupplierCapability[]
+  industryLinks    SupplierIndustry[]
 
   @@index([isVerified])
   @@index([location])
@@ -480,22 +533,79 @@ model SupplierProduct {
   id           String   @id @default(uuid())
   supplierId   String   @map("supplier_id")
   capabilityId String?  @map("capability_id")
+  categoryId   String?  @map("category_id")
   category     String
   productName  String   @map("product_name")
+  material     String?
   priceRange   String   @map("price_range")
   moq          String
   productionCapacity String @map("production_capacity")
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 
-  supplier   Supplier    @relation(fields: [supplierId], references: [id], onDelete: Cascade)
-  capability Capability? @relation(fields: [capabilityId], references: [id], onDelete: SetNull)
+  supplier         Supplier            @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  capability       Capability?         @relation(fields: [capabilityId], references: [id], onDelete: SetNull)
+  categoryRef      Category?           @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  capabilityLinks  ProductCapability[]
 
   @@index([supplierId])
   @@index([capabilityId])
+  @@index([categoryId])
   @@index([category])
   @@index([createdAt])
   @@map("supplier_products")
+}
+
+model SupplierCapability {
+  supplierId   String @map("supplier_id")
+  capabilityId String @map("capability_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  supplier   Supplier   @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  capability Capability @relation(fields: [capabilityId], references: [id], onDelete: Cascade)
+
+  @@id([supplierId, capabilityId])
+  @@index([capabilityId])
+  @@map("supplier_capabilities")
+}
+
+model SupplierIndustry {
+  supplierId String @map("supplier_id")
+  industryId String @map("industry_id")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  supplier Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  industry Industry @relation(fields: [industryId], references: [id], onDelete: Cascade)
+
+  @@id([supplierId, industryId])
+  @@index([industryId])
+  @@map("supplier_industries")
+}
+
+model ProductCapability {
+  productId    String @map("product_id")
+  capabilityId String @map("capability_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  product    SupplierProduct @relation(fields: [productId], references: [id], onDelete: Cascade)
+  capability Capability      @relation(fields: [capabilityId], references: [id], onDelete: Cascade)
+
+  @@id([productId, capabilityId])
+  @@index([capabilityId])
+  @@map("product_capabilities")
+}
+
+model RequirementCapability {
+  requirementId String @map("requirement_id")
+  capabilityId  String @map("capability_id")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  requirement Inquiry    @relation(fields: [requirementId], references: [id], onDelete: Cascade)
+  capability  Capability @relation(fields: [capabilityId], references: [id], onDelete: Cascade)
+
+  @@id([requirementId, capabilityId])
+  @@index([capabilityId])
+  @@map("requirement_capabilities")
 }
 
 

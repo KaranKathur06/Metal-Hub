@@ -9,6 +9,15 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     const message = String(exception?.message || '');
     const code = String(exception?.code || exception?.errorCode || '');
 
+    // Keep root cause visible in server logs for production debugging.
+    // eslint-disable-next-line no-console
+    console.error('[GlobalExceptionFilter]', {
+      name: exception?.name,
+      code,
+      message,
+      stack: exception?.stack,
+    });
+
     const isDatabaseUnavailable =
       code === 'P1001' ||
       message.includes('P1001') ||

@@ -28,6 +28,14 @@ export class MarketplaceQueryDto {
   category?: string[];
 
   @IsOptional()
+  @Transform(({ value }) => toStringArray(value))
+  capability?: string[];
+
+  @IsOptional()
+  @Transform(({ value }) => toStringArray(value))
+  industry?: string[];
+
+  @IsOptional()
   @IsBoolean()
   @Transform(({ value }) =>
     value === true || value === 'true' || value === 1 || value === '1'
@@ -47,8 +55,8 @@ export class MarketplaceQueryDto {
   date?: 'last-24h' | 'last-7d' | 'last-30d';
 
   @IsOptional()
-  @IsIn(['latest', 'verified', 'price', 'rating'])
-  sort?: 'latest' | 'verified' | 'price' | 'rating';
+  @IsIn(['latest', 'verified', 'price', 'rating', 'response', 'completion'])
+  sort?: 'latest' | 'verified' | 'price' | 'rating' | 'response' | 'completion';
 
   @Transform(({ value }) => Number(value))
   @IsOptional()

@@ -32,6 +32,14 @@ export class InquiryQueryDto {
   category?: string[];
 
   @IsOptional()
+  @Transform(({ value }) => toStringArray(value))
+  capability?: string[];
+
+  @IsOptional()
+  @Transform(({ value }) => toStringArray(value))
+  industry?: string[];
+
+  @IsOptional()
   @IsBoolean()
   @Transform(({ value }) =>
     value === true || value === 'true' || value === 1 || value === '1'
@@ -47,8 +55,8 @@ export class InquiryQueryDto {
   date?: 'last-24h' | 'last-7d' | 'last-30d';
 
   @IsOptional()
-  @IsIn(['latest', 'verified', 'price', 'rating'])
-  sortBy?: 'latest' | 'verified' | 'price' | 'rating';
+  @IsIn(['latest', 'verified', 'price'])
+  sortBy?: 'latest' | 'verified' | 'price';
 
   @Transform(({ value }) => Number(value))
   @IsOptional()
@@ -88,6 +96,14 @@ export class CreateInquiryDto {
 
   @IsString()
   category: string;
+
+  @IsOptional()
+  @IsString()
+  industry?: string;
+
+  @IsOptional()
+  @IsString()
+  material?: string;
 
   @IsOptional()
   @IsIn(['HIGH', 'MEDIUM', 'LOW'])
