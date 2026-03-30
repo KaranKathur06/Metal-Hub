@@ -313,11 +313,32 @@ export async function proxyToBackend(req: Request, options: ProxyOptions) {
     }
 
     const text = await upstreamRes.text();
+    const contentType = upstreamRes.headers.get('content-type') || 'application/json';
+
+    if (!text || text.trim().length === 0) {
+      if (contentType.includes('application/json')) {
+        return NextResponse.json(
+          {
+            message: upstreamRes.ok
+              ? 'Empty response received from backend.'
+              : `Backend request failed (${upstreamRes.status}) with empty payload.`,
+          },
+          { status: upstreamRes.status || 502 },
+        );
+      }
+
+      return new NextResponse('', {
+        status: upstreamRes.status,
+        headers: {
+          'Content-Type': contentType,
+        },
+      });
+    }
 
     return new NextResponse(text, {
       status: upstreamRes.status,
       headers: {
-        'Content-Type': upstreamRes.headers.get('content-type') || 'application/json',
+        'Content-Type': contentType,
       },
     });
   } catch {

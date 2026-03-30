@@ -64,7 +64,7 @@ const SORT_OPTIONS = [
   { label: 'Latest', value: 'latest' },
   { label: 'Verified First', value: 'verified' },
   { label: 'Highest Rated', value: 'rating' },
-  { label: 'Price: Low → High', value: 'price' },
+  { label: 'Price: Low â†’ High', value: 'price' },
   { label: 'Fastest Response', value: 'response' },
   { label: 'Best Completion', value: 'completion' },
 ];
@@ -154,8 +154,19 @@ export default function MarketplaceTabs() {
     setError(null);
     try {
       const res = await fetch(`/api/marketplace?${params.toString()}`, { cache: 'no-store' });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json?.message || 'Unable to load marketplace data.');
+      const raw = await res.text();
+      let json: any = null;
+      if (raw) {
+        try {
+          json = JSON.parse(raw);
+        } catch {
+          json = null;
+        }
+      }
+      if (!res.ok) throw new Error(json?.message || `Marketplace API failed (${res.status}).`);
+      if (!json || typeof json !== 'object') {
+        throw new Error('Marketplace API returned an invalid response payload.');
+      }
       setResponse(json);
     } catch (err: any) {
       setError(err?.message || 'Unable to load marketplace data.');
@@ -169,8 +180,9 @@ export default function MarketplaceTabs() {
     const loadCapabilities = async () => {
       try {
         const res = await fetch('/api/capabilities', { cache: 'no-store' });
-        if (!res.ok) return;
-        const data = await res.json();
+        if (!res.ok) return setCapabilities([]);
+        const raw = await res.text();
+        const data = raw ? JSON.parse(raw) : [];
         setCapabilities(Array.isArray(data) ? data : []);
       } catch { setCapabilities([]); }
     };
