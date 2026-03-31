@@ -258,14 +258,40 @@ function getFallbackByPath(path: string, searchParams: URLSearchParams) {
   return null;
 }
 
-function getBackendBase() {
-  return process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000';
+function getBackendBase(requestUrl: URL) {
+  const configured =
+    process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_BACKEND_URL || '';
+  const raw = configured.trim();
+
+  if (!raw) {
+    return process.env.NODE_ENV === 'production'
+      ? requestUrl.origin
+      : 'http://localhost:5000';
+  }
+
+  if (/^https?:\/\//i.test(raw)) {
+    return raw;
+  }
+
+  if (raw.startsWith('//')) {
+    return `${requestUrl.protocol}${raw}`;
+  }
+
+  const isLocal =
+    raw.startsWith('localhost') ||
+    raw.startsWith('127.0.0.1') ||
+    raw.startsWith('0.0.0.0');
+
+  return `${isLocal ? 'http' : 'https'}://${raw}`;
 }
 
 export async function proxyToBackend(req: Request, options: ProxyOptions) {
   const method = options.method || 'GET';
   const requestUrl = new URL(req.url);
-  const upstreamUrl = new URL(`/api${options.backendPath}`, getBackendBase());
+  const upstreamUrl = new URL(
+    `/api${options.backendPath}`,
+    getBackendBase(requestUrl),
+  );
 
   requestUrl.searchParams.forEach((value, key) => {
     upstreamUrl.searchParams.set(key, value);
