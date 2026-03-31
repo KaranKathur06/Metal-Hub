@@ -1,5 +1,4 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   CreateSupplierProductDto,
@@ -65,7 +64,12 @@ export class SuppliersService {
       industries: (supplier.industryLinks || [])
         .map((entry: any) => entry.industry)
         .filter(Boolean),
-      products: supplier.products || [],
+      products: (supplier.products || []).map((product: any) => ({
+        ...product,
+        keywords: product.keywords || [],
+        applications: product.applications || [],
+        industries: product.industries || [],
+      })),
     };
   }
 
@@ -74,16 +78,19 @@ export class SuppliersService {
       await this.prisma.ensureConnection();
 
       // eslint-disable-next-line no-console
-      console.log('[Marketplace Suppliers] Incoming Filters:', query);
+      console.log('[Marketplace Suppliers] Filters:', query);
 
       const page = query.page || 1;
       const limit = Math.min(query.limit || 10, 20);
       const offset = (page - 1) * limit;
 
-      const where: Prisma.SupplierWhereInput = {};
-      const andConditions: Prisma.SupplierWhereInput[] = [];
+      const where: any = {};
+      const andConditions: any[] = [];
 
       if (query.search) {
+        const normalized = query.search.toLowerCase().trim();
+        const tokens = normalized.split(/\s+/).filter(Boolean);
+
         andConditions.push({
           OR: [
             { companyName: { contains: query.search, mode: 'insensitive' } },
@@ -102,6 +109,38 @@ export class SuppliersService {
                 },
               },
             },
+            {
+              products: {
+                some: {
+                  keywords: { has: normalized },
+                },
+              },
+            },
+            ...(tokens.length > 0
+              ? [
+                  {
+                    products: {
+                      some: {
+                        keywords: { hasSome: tokens },
+                      },
+                    },
+                  },
+                  {
+                    products: {
+                      some: {
+                        applications: { hasSome: tokens },
+                      },
+                    },
+                  },
+                  {
+                    products: {
+                      some: {
+                        industries: { hasSome: tokens },
+                      },
+                    },
+                  },
+                ]
+              : []),
           ],
         });
       }
@@ -159,7 +198,7 @@ export class SuppliersService {
         where.AND = andConditions;
       }
 
-      const orderBy: Prisma.SupplierOrderByWithRelationInput[] =
+      const orderBy: any[] =
         query.sortBy === 'verified'
           ? [{ isVerified: 'desc' }, { rating: 'desc' }, { createdAt: 'desc' }]
           : query.sortBy === 'rating'
@@ -213,6 +252,9 @@ export class SuppliersService {
           return values.some((v: number) => v > 1000);
         });
       }
+
+      // eslint-disable-next-line no-console
+      console.log('[Marketplace Suppliers] Results count:', suppliers.length);
 
       return {
         suppliers,
@@ -392,3 +434,4 @@ export class SuppliersService {
     });
   }
 }
+

@@ -235,7 +235,7 @@ async function main() {
     for (const capSlug of s.capabilities) {
       const capId = capMap.get(capSlug);
       if (capId) {
-        await prisma.supplierCapability.create({ data: { supplierId: supplier.id, capabilityId: capId } }).catch(() => {});
+        await prisma.supplierCapability.create({ data: { supplierId: supplier.id, capabilityId: capId } }).catch(() => { });
       }
     }
 
@@ -243,7 +243,7 @@ async function main() {
     for (const indSlug of s.industries) {
       const indId = industryMap.get(indSlug);
       if (indId) {
-        await prisma.supplierIndustry.create({ data: { supplierId: supplier.id, industryId: indId } }).catch(() => {});
+        await prisma.supplierIndustry.create({ data: { supplierId: supplier.id, industryId: indId } }).catch(() => { });
       }
     }
 
@@ -267,7 +267,7 @@ async function main() {
       });
 
       if (capId) {
-        await prisma.productCapability.create({ data: { productId: product.id, capabilityId: capId } }).catch(() => {});
+        await prisma.productCapability.create({ data: { productId: product.id, capabilityId: capId } }).catch(() => { });
       }
       productCount++;
     }
@@ -297,7 +297,7 @@ async function main() {
 
     // Link requirement capabilities
     if (capId) {
-      await prisma.requirementCapability.create({ data: { requirementId: inquiry.id, capabilityId: capId } }).catch(() => {});
+      await prisma.requirementCapability.create({ data: { requirementId: inquiry.id, capabilityId: capId } }).catch(() => { });
     }
   }
 

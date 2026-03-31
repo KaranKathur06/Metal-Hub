@@ -461,6 +461,8 @@ model Inquiry {
   productName  String        @map("product_name")
   description  String
   material     String?
+  keywords     String[]      @default([])
+  applications String[]      @default([])
   specDocUrls  String[]      @default([]) @map("spec_doc_urls")
   quantity     String
   budget       Decimal?      @db.Decimal(12, 2)
@@ -487,6 +489,8 @@ model Inquiry {
   @@index([location])
   @@index([status])
   @@index([createdAt])
+  @@index([keywords], type: Gin)
+  @@index([applications], type: Gin)
   @@map("inquiries")
 }
 
@@ -537,6 +541,9 @@ model SupplierProduct {
   category     String
   productName  String   @map("product_name")
   material     String?
+  industries   String[] @default([])
+  applications String[] @default([])
+  keywords     String[] @default([])
   priceRange   String   @map("price_range")
   moq          String
   productionCapacity String @map("production_capacity")
@@ -553,6 +560,9 @@ model SupplierProduct {
   @@index([categoryId])
   @@index([category])
   @@index([createdAt])
+  @@index([keywords], type: Gin)
+  @@index([industries], type: Gin)
+  @@index([applications], type: Gin)
   @@map("supplier_products")
 }
 

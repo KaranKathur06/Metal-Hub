@@ -44,6 +44,9 @@ type SupplierListing = {
     productName: string;
     category: string;
     material?: string;
+    keywords?: string[];
+    industries?: string[];
+    applications?: string[];
     priceRange: string;
     moq: string;
     productionCapacity: string;
@@ -238,11 +241,23 @@ export default function ListingCard({
             <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Featured Product</p>
             <p className="mt-1 line-clamp-1 text-sm font-bold text-slate-900">{primaryProduct?.productName || 'Product catalog available'}</p>
             <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-0.5 text-[12px] text-slate-600">
-              <span>💰 {primaryProduct?.priceRange || 'On request'}</span>
-              <span>📦 {primaryProduct?.moq || 'Custom'}</span>
-              <span>⚡ {primaryProduct?.productionCapacity || 'On request'}</span>
-              <span>🔧 {primaryProduct?.material || 'Mixed'}</span>
+              <span>Price: {primaryProduct?.priceRange || 'On request'}</span>
+              <span>MOQ: {primaryProduct?.moq || 'Custom'}</span>
+              <span>Capacity: {primaryProduct?.productionCapacity || 'On request'}</span>
+              <span>Material: {primaryProduct?.material || 'Mixed'}</span>
             </div>
+            {primaryProduct?.keywords?.length ? (
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {primaryProduct.keywords.slice(0, 4).map((keyword) => (
+                  <span
+                    key={keyword}
+                    className="rounded-full border border-indigo-100 bg-indigo-50 px-2 py-0.5 text-[11px] font-medium text-indigo-700"
+                  >
+                    {keyword}
+                  </span>
+                ))}
+              </div>
+            ) : null}
           </div>
 
           {/* Trust layer + CTA */}
@@ -264,3 +279,5 @@ export default function ListingCard({
     </Link>
   );
 }
+
+
