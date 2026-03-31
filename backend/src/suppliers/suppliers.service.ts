@@ -1,4 +1,5 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   CreateSupplierProductDto,
@@ -30,112 +31,41 @@ function getDateCutoff(dateFilter?: 'last-24h' | 'last-7d' | 'last-30d') {
   return cutoff;
 }
 
-function normalizeJsonArray(value: unknown) {
-  if (Array.isArray(value)) return value;
-  if (typeof value === 'string') {
-    try {
-      return JSON.parse(value);
-    } catch {
-      return [];
-    }
-  }
-  return [];
+function parseFirstNumber(value?: string | null) {
+  if (!value) return Number.POSITIVE_INFINITY;
+  const match = value.match(/[\d,.]+/);
+  if (!match) return Number.POSITIVE_INFINITY;
+  return Number.parseFloat(match[0].replace(/,/g, ''));
 }
 
 @Injectable()
 export class SuppliersService {
   constructor(private prisma: PrismaService) {}
 
-  private buildSupplierWhere(query: SupplierQueryDto) {
-    const params: any[] = [];
-    const conditions: string[] = [];
-
-    const addParam = (value: any) => {
-      params.push(value);
-      return `$${params.length}`;
-    };
-
-    if (query.search) {
-      const searchLike = addParam(`%${query.search.toLowerCase()}%`);
-      const searchTs = addParam(query.search);
-      conditions.push(`(
-        LOWER(s.company_name) LIKE ${searchLike}
-        OR LOWER(s.description) LIKE ${searchLike}
-        OR EXISTS (
-          SELECT 1 FROM supplier_products sps
-          WHERE sps.supplier_id = s.id
-          AND LOWER(sps.product_name) LIKE ${searchLike}
-        )
-        OR to_tsvector('english', COALESCE(s.company_name, '') || ' ' || COALESCE(s.description, '')) @@ plainto_tsquery('english', ${searchTs})
-      )`);
-    }
-
-    if (query.location && query.location.length > 0) {
-      const checks = query.location.map((location) => {
-        const ref = addParam(`%${location.toLowerCase()}%`);
-        return `LOWER(s.location) LIKE ${ref}`;
-      });
-      conditions.push(`(${checks.join(' OR ')})`);
-    }
-
-    const capabilityFilters = query.capability && query.capability.length > 0 ? query.capability : query.category;
-    if (capabilityFilters && capabilityFilters.length > 0) {
-      const refs = capabilityFilters.map((entry) => addParam(entry.toLowerCase()));
-      conditions.push(`EXISTS (
-        SELECT 1
-        FROM supplier_capabilities sc
-        JOIN capabilities c ON c.id = sc.capability_id
-        WHERE sc.supplier_id = s.id
-        AND LOWER(c.slug) IN (${refs.join(', ')})
-      )`);
-    }
-
-    if (query.industry && query.industry.length > 0) {
-      const refs = query.industry.map((entry) => addParam(entry.toLowerCase()));
-      conditions.push(`EXISTS (
-        SELECT 1
-        FROM supplier_industries si
-        JOIN industries i ON i.id = si.industry_id
-        WHERE si.supplier_id = s.id
-        AND LOWER(i.slug) IN (${refs.join(', ')})
-      )`);
-    }
-
-    if (typeof query.verified === 'boolean') {
-      conditions.push(`s.is_verified = ${query.verified ? 'TRUE' : 'FALSE'}`);
-    }
-
-    const cutoff = getDateCutoff(query.date);
-    if (cutoff) {
-      const cutoffRef = addParam(cutoff);
-      conditions.push(`s.created_at >= ${cutoffRef}`);
-    }
-
-    if (query.moqRange) {
-      if (query.moqRange === 'lt-100') {
-        conditions.push(`EXISTS (
-          SELECT 1 FROM supplier_products spm
-          WHERE spm.supplier_id = s.id
-          AND NULLIF(regexp_replace(spm.moq, '[^0-9]', '', 'g'), '')::int < 100
-        )`);
-      } else if (query.moqRange === '100-1000') {
-        conditions.push(`EXISTS (
-          SELECT 1 FROM supplier_products spm
-          WHERE spm.supplier_id = s.id
-          AND NULLIF(regexp_replace(spm.moq, '[^0-9]', '', 'g'), '')::int BETWEEN 100 AND 1000
-        )`);
-      } else {
-        conditions.push(`EXISTS (
-          SELECT 1 FROM supplier_products spm
-          WHERE spm.supplier_id = s.id
-          AND NULLIF(regexp_replace(spm.moq, '[^0-9]', '', 'g'), '')::int > 1000
-        )`);
-      }
-    }
-
+  private toSupplierResponse(supplier: any) {
     return {
-      whereSql: conditions.length ? `WHERE ${conditions.join(' AND ')}` : '',
-      params,
+      id: supplier.id,
+      companyName: supplier.companyName,
+      tagline: supplier.tagline,
+      description: supplier.description,
+      location: supplier.location,
+      isVerified: supplier.isVerified,
+      isoCertified: supplier.isoCertified,
+      exportReady: supplier.exportReady,
+      responseTimeMinutes: supplier.responseTimeMinutes,
+      completionRate: supplier.completionRate,
+      rating:
+        typeof supplier.rating === 'object' && supplier.rating !== null
+          ? Number(supplier.rating.toString())
+          : Number(supplier.rating || 0),
+      createdAt: supplier.createdAt,
+      capabilities: (supplier.capabilityLinks || [])
+        .map((entry: any) => entry.capability)
+        .filter(Boolean),
+      industries: (supplier.industryLinks || [])
+        .map((entry: any) => entry.industry)
+        .filter(Boolean),
+      products: supplier.products || [],
     };
   }
 
@@ -143,101 +73,154 @@ export class SuppliersService {
     try {
       await this.prisma.ensureConnection();
 
+      // eslint-disable-next-line no-console
+      console.log('[Marketplace Suppliers] Incoming Filters:', query);
+
       const page = query.page || 1;
       const limit = Math.min(query.limit || 10, 20);
       const offset = (page - 1) * limit;
 
-      const { whereSql, params } = this.buildSupplierWhere(query);
+      const where: Prisma.SupplierWhereInput = {};
+      const andConditions: Prisma.SupplierWhereInput[] = [];
 
-      const orderBySql =
+      if (query.search) {
+        andConditions.push({
+          OR: [
+            { companyName: { contains: query.search, mode: 'insensitive' } },
+            { description: { contains: query.search, mode: 'insensitive' } },
+            {
+              products: {
+                some: {
+                  productName: { contains: query.search, mode: 'insensitive' },
+                },
+              },
+            },
+            {
+              products: {
+                some: {
+                  material: { contains: query.search, mode: 'insensitive' },
+                },
+              },
+            },
+          ],
+        });
+      }
+
+      if (query.location && query.location.length > 0) {
+        andConditions.push({
+          OR: query.location.map((location) => ({
+            location: { contains: location, mode: 'insensitive' },
+          })),
+        });
+      }
+
+      const capabilityFilters =
+        query.capability && query.capability.length > 0
+          ? query.capability
+          : query.category;
+      if (capabilityFilters && capabilityFilters.length > 0) {
+        andConditions.push({
+          capabilityLinks: {
+            some: {
+              capability: {
+                slug: {
+                  in: capabilityFilters.map((item) => item.toLowerCase()),
+                },
+              },
+            },
+          },
+        });
+      }
+
+      if (query.industry && query.industry.length > 0) {
+        andConditions.push({
+          industryLinks: {
+            some: {
+              industry: {
+                slug: {
+                  in: query.industry.map((item) => item.toLowerCase()),
+                },
+              },
+            },
+          },
+        });
+      }
+
+      if (typeof query.verified === 'boolean') {
+        andConditions.push({ isVerified: query.verified });
+      }
+
+      const cutoff = getDateCutoff(query.date);
+      if (cutoff) {
+        andConditions.push({ createdAt: { gte: cutoff } });
+      }
+
+      if (andConditions.length > 0) {
+        where.AND = andConditions;
+      }
+
+      const orderBy: Prisma.SupplierOrderByWithRelationInput[] =
         query.sortBy === 'verified'
-          ? 's.is_verified DESC, s.rating DESC, s.created_at DESC'
-          : query.sortBy === 'price'
-            ? "COALESCE(MIN(NULLIF(regexp_replace(sp.price_range, '[^0-9.]', '', 'g'), '')::numeric), 999999999) ASC, s.created_at DESC"
-            : query.sortBy === 'rating'
-              ? 's.rating DESC, s.created_at DESC'
-              : query.sortBy === 'response'
-                ? 's.response_time_minutes ASC, s.created_at DESC'
-                : query.sortBy === 'completion'
-                  ? 's.completion_rate DESC, s.created_at DESC'
-                  : 's.is_verified DESC, s.rating DESC, s.created_at DESC';
+          ? [{ isVerified: 'desc' }, { rating: 'desc' }, { createdAt: 'desc' }]
+          : query.sortBy === 'rating'
+            ? [{ rating: 'desc' }, { createdAt: 'desc' }]
+            : query.sortBy === 'response'
+              ? [{ responseTimeMinutes: 'asc' }, { createdAt: 'desc' }]
+              : query.sortBy === 'completion'
+                ? [{ completionRate: 'desc' }, { createdAt: 'desc' }]
+                : [{ isVerified: 'desc' }, { rating: 'desc' }, { createdAt: 'desc' }];
 
-      const listSql = `
-        SELECT
-          s.id,
-          s.company_name AS "companyName",
-          s.tagline,
-          s.description,
-          s.location,
-          s.is_verified AS "isVerified",
-          s.iso_certified AS "isoCertified",
-          s.export_ready AS "exportReady",
-          s.response_time_minutes AS "responseTimeMinutes",
-          s.completion_rate AS "completionRate",
-          s.rating::float AS "rating",
-          s.created_at AS "createdAt",
-          COALESCE(
-            JSON_AGG(
-              DISTINCT JSONB_BUILD_OBJECT(
-                'id', sp.id,
-                'productName', sp.product_name,
-                'category', sp.category,
-                'material', sp.material,
-                'priceRange', sp.price_range,
-                'moq', sp.moq,
-                'productionCapacity', sp.production_capacity
-              )
-            ) FILTER (WHERE sp.id IS NOT NULL),
-            '[]'::json
-          ) AS products,
-          COALESCE((
-            SELECT JSON_AGG(DISTINCT JSONB_BUILD_OBJECT('id', c.id, 'name', c.name, 'slug', c.slug))
-            FROM supplier_capabilities sc
-            JOIN capabilities c ON c.id = sc.capability_id
-            WHERE sc.supplier_id = s.id
-          ), '[]'::json) AS capabilities,
-          COALESCE((
-            SELECT JSON_AGG(DISTINCT JSONB_BUILD_OBJECT('id', i.id, 'name', i.name, 'slug', i.slug))
-            FROM supplier_industries si
-            JOIN industries i ON i.id = si.industry_id
-            WHERE si.supplier_id = s.id
-          ), '[]'::json) AS industries
-        FROM suppliers s
-        LEFT JOIN supplier_products sp ON sp.supplier_id = s.id
-        ${whereSql}
-        GROUP BY s.id
-        ORDER BY ${orderBySql}
-        LIMIT $${params.length + 1}
-        OFFSET $${params.length + 2}
-      `;
-
-      const totalSql = `
-        SELECT COUNT(*)::int AS total
-        FROM suppliers s
-        ${whereSql}
-      `;
-
-      const [rows, totalRows] = await Promise.all([
-        this.prisma.$queryRawUnsafe(listSql, ...params, limit, offset),
-        this.prisma.$queryRawUnsafe(totalSql, ...params),
+      const [rows, total] = await Promise.all([
+        (this.prisma as any).supplier.findMany({
+          where,
+          include: {
+            capabilityLinks: { include: { capability: true } },
+            industryLinks: { include: { industry: true } },
+            products: {
+              orderBy: [{ createdAt: 'desc' }],
+            },
+          },
+          orderBy,
+          skip: offset,
+          take: limit,
+        }),
+        (this.prisma as any).supplier.count({ where }),
       ]);
 
-      const suppliers = (rows as any[]).map((row) => ({
-        ...row,
-        products: normalizeJsonArray(row.products),
-        capabilities: normalizeJsonArray(row.capabilities),
-        industries: normalizeJsonArray(row.industries),
-      }));
+      let suppliers = rows.map((row: any) => this.toSupplierResponse(row));
 
-      const total = Number((totalRows as any[])?.[0]?.total || 0);
+      if (query.sortBy === 'price') {
+        suppliers = [...suppliers].sort((a, b) => {
+          const aMin = Math.min(
+            ...(a.products || []).map((p: any) => parseFirstNumber(p.priceRange)),
+          );
+          const bMin = Math.min(
+            ...(b.products || []).map((p: any) => parseFirstNumber(p.priceRange)),
+          );
+          return aMin - bMin;
+        });
+      }
+
+      if (query.moqRange) {
+        suppliers = suppliers.filter((supplier: any) => {
+          const values = (supplier.products || []).map((p: any) =>
+            parseFirstNumber(p.moq),
+          );
+          if (query.moqRange === 'lt-100') return values.some((v: number) => v < 100);
+          if (query.moqRange === '100-1000') {
+            return values.some((v: number) => v >= 100 && v <= 1000);
+          }
+          return values.some((v: number) => v > 1000);
+        });
+      }
 
       return {
         suppliers,
         pagination: {
           page,
           limit,
-          total,
-          totalPages: Math.max(1, Math.ceil(total / limit)),
+          total: query.moqRange ? suppliers.length : total,
+          totalPages: Math.max(1, Math.ceil((query.moqRange ? suppliers.length : total) / limit)),
         },
       };
     } catch {
@@ -253,64 +236,22 @@ export class SuppliersService {
     try {
       await this.prisma.ensureConnection();
 
-      const detailSql = `
-        SELECT
-          s.id,
-          s.company_name AS "companyName",
-          s.tagline,
-          s.description,
-          s.location,
-          s.is_verified AS "isVerified",
-          s.iso_certified AS "isoCertified",
-          s.export_ready AS "exportReady",
-          s.response_time_minutes AS "responseTimeMinutes",
-          s.completion_rate AS "completionRate",
-          s.rating::float AS "rating",
-          s.created_at AS "createdAt",
-          COALESCE(
-            JSON_AGG(
-              DISTINCT JSONB_BUILD_OBJECT(
-                'id', sp.id,
-                'productName', sp.product_name,
-                'category', sp.category,
-                'material', sp.material,
-                'priceRange', sp.price_range,
-                'moq', sp.moq,
-                'productionCapacity', sp.production_capacity
-              )
-            ) FILTER (WHERE sp.id IS NOT NULL),
-            '[]'::json
-          ) AS products,
-          COALESCE((
-            SELECT JSON_AGG(DISTINCT JSONB_BUILD_OBJECT('id', c.id, 'name', c.name, 'slug', c.slug))
-            FROM supplier_capabilities sc
-            JOIN capabilities c ON c.id = sc.capability_id
-            WHERE sc.supplier_id = s.id
-          ), '[]'::json) AS capabilities,
-          COALESCE((
-            SELECT JSON_AGG(DISTINCT JSONB_BUILD_OBJECT('id', i.id, 'name', i.name, 'slug', i.slug))
-            FROM supplier_industries si
-            JOIN industries i ON i.id = si.industry_id
-            WHERE si.supplier_id = s.id
-          ), '[]'::json) AS industries
-        FROM suppliers s
-        LEFT JOIN supplier_products sp ON sp.supplier_id = s.id
-        WHERE s.id = $1
-        GROUP BY s.id
-      `;
+      const supplier = await (this.prisma as any).supplier.findUnique({
+        where: { id },
+        include: {
+          capabilityLinks: { include: { capability: true } },
+          industryLinks: { include: { industry: true } },
+          products: {
+            orderBy: [{ createdAt: 'desc' }],
+          },
+        },
+      });
 
-      const rows = (await this.prisma.$queryRawUnsafe(detailSql, id)) as any[];
-      if (!rows.length) {
+      if (!supplier) {
         throw new NotFoundException('Supplier not found');
       }
 
-      const supplier = rows[0];
-      return {
-        ...supplier,
-        products: normalizeJsonArray(supplier.products),
-        capabilities: normalizeJsonArray(supplier.capabilities),
-        industries: normalizeJsonArray(supplier.industries),
-      };
+      return this.toSupplierResponse(supplier);
     } catch {
       const fallback = getFallbackSupplierById(id);
       if (!fallback) {

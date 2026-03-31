@@ -64,7 +64,7 @@ const SORT_OPTIONS = [
   { label: 'Latest', value: 'latest' },
   { label: 'Verified First', value: 'verified' },
   { label: 'Highest Rated', value: 'rating' },
-  { label: 'Price: Low â†’ High', value: 'price' },
+  { label: 'Price Low to High', value: 'price' },
   { label: 'Fastest Response', value: 'response' },
   { label: 'Best Completion', value: 'completion' },
 ];
