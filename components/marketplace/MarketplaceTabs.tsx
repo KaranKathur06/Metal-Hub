@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import FilterDropdown from './FilterDropdown';
 import ListingCard from './ListingCard';
+import { getSupabaseBrowserClient } from '../../lib/supabase/browser-client';
 
 type CapabilityOption = { id: string; name: string; slug: string };
 
@@ -17,34 +18,8 @@ type MarketplaceResponse = {
   pagination: { page: number; limit: number; total: number; totalPages: number };
 };
 
-const LOCATION_OPTIONS = [
-  { label: 'India', value: 'india' },
-  { label: 'United States', value: 'usa' },
-  { label: 'UAE', value: 'uae' },
-  { label: 'Germany', value: 'germany' },
-  { label: 'United Kingdom', value: 'uk' },
-  { label: 'Singapore', value: 'singapore' },
-  { label: 'Vietnam', value: 'vietnam' },
-  { label: 'Turkey', value: 'turkey' },
-  { label: 'Japan', value: 'japan' },
-  { label: 'China', value: 'china' },
-  { label: 'Italy', value: 'italy' },
-];
-
-const INDUSTRY_OPTIONS = [
-  { label: 'Automotive', value: 'automotive' },
-  { label: 'Aerospace & Defense', value: 'aerospace-defense' },
-  { label: 'Oil & Gas', value: 'oil-gas' },
-  { label: 'Construction', value: 'construction' },
-  { label: 'Power & Energy', value: 'power-energy' },
-  { label: 'Industrial Machinery', value: 'industrial-machinery' },
-  { label: 'Electronics Manufacturing', value: 'electronics-manufacturing' },
-  { label: 'Robotics & Automation', value: 'robotics-automation' },
-  { label: 'Marine & Shipbuilding', value: 'marine-shipbuilding' },
-  { label: 'Medical Devices', value: 'medical-devices' },
-  { label: 'Renewable Energy', value: 'renewable-energy' },
-  { label: 'Agriculture Equipment', value: 'agriculture-equipment' },
-];
+// Location and Industry options are now loaded from the database
+// See useEffect below that fetches from Supabase taxonomy + countries tables
 
 const VERIFIED_OPTIONS = [{ label: 'Verified only', value: 'true' }];
 
@@ -81,6 +56,8 @@ export default function MarketplaceTabs() {
   const debounceRef = useRef<number | null>(null);
 
   const [capabilities, setCapabilities] = useState<CapabilityOption[]>([]);
+  const [industryOptions, setIndustryOptions] = useState<Array<{ label: string; value: string }>>([]);
+  const [locationOptions, setLocationOptions] = useState<Array<{ label: string; value: string }>>([]);
   const [response, setResponse] = useState<MarketplaceResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -189,6 +166,38 @@ export default function MarketplaceTabs() {
     loadCapabilities();
   }, []);
 
+  // Load industries from taxonomy DB
+  useEffect(() => {
+    const supabase = getSupabaseBrowserClient();
+    if (!supabase) return;
+    supabase
+      .from('taxonomy')
+      .select('name,slug')
+      .eq('type', 'industry')
+      .eq('is_active', true)
+      .is('deleted_at', null)
+      .order('sort_order', { ascending: true })
+      .then(({ data }) => {
+        if (data) setIndustryOptions(data.map((d: any) => ({ label: d.name, value: d.slug })));
+      });
+  }, []);
+
+  // Load locations from countries DB
+  useEffect(() => {
+    const supabase = getSupabaseBrowserClient();
+    if (!supabase) return;
+    supabase
+      .from('countries')
+      .select('name,iso2')
+      .eq('is_active', true)
+      .is('deleted_at', null)
+      .order('sort_order', { ascending: true })
+      .order('name', { ascending: true })
+      .then(({ data }) => {
+        if (data) setLocationOptions(data.map((d: any) => ({ label: d.name, value: d.iso2?.toLowerCase() || d.name.toLowerCase() })));
+      });
+  }, []);
+
   useEffect(() => {
     if (debounceRef.current) window.clearTimeout(debounceRef.current);
     debounceRef.current = window.setTimeout(() => { fetchData(); }, 280);
@@ -288,14 +297,14 @@ export default function MarketplaceTabs() {
 
             <div className="ml-auto flex flex-wrap items-center gap-2">
               <Filter className="h-4 w-4 text-slate-400" />
-              <FilterDropdown label="Location" options={LOCATION_OPTIONS} value={locations} onChange={(next) => updateParams({ location: next.join(',') })} />
+              <FilterDropdown label="Location" options={locationOptions} value={locations} onChange={(next) => updateParams({ location: next.join(',') })} />
               <FilterDropdown
                 label="Capability"
                 options={capabilities.map((c) => ({ label: c.name, value: c.slug }))}
                 value={capabilitiesSelected}
                 onChange={(next) => updateParams({ capability: next.join(',') })}
               />
-              <FilterDropdown label="Industry" options={INDUSTRY_OPTIONS} value={industries} onChange={(next) => updateParams({ industry: next.join(',') })} />
+              <FilterDropdown label="Industry" options={industryOptions} value={industries} onChange={(next) => updateParams({ industry: next.join(',') })} />
               <FilterDropdown label="Verified" options={VERIFIED_OPTIONS} value={verified} multiple={false} onChange={(next) => updateParams({ verified: next.length > 0 ? 'true' : '' })} />
               {activeType === 'suppliers' ? (
                 <FilterDropdown label="MOQ" options={MOQ_OPTIONS} value={moqRange} multiple={false} onChange={(next) => updateParams({ moqRange: next[0] || '' })} />
