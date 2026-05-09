@@ -12,7 +12,7 @@
 
 create table if not exists public.auth_providers (
   id uuid primary key default gen_random_uuid(),
-  profile_id uuid not null references public.profiles(id) on delete cascade,
+  profile_id text not null references public.profiles(id) on delete cascade,
   auth_user_id uuid not null references auth.users(id) on delete cascade,
   provider text not null,           -- 'email', 'google', 'apple', etc.
   provider_user_id text,            -- external provider user ID (e.g. Google sub)
@@ -38,9 +38,45 @@ create index if not exists auth_providers_email_idx on public.auth_providers(pro
 
 
 -- ═══════════════════════════════════════════════════════
--- 2. ADD UNIQUE EMAIL INDEX TO PROFILES
--- Only one profile per email (excluding soft-deletes and nulls)
+-- 2. ADD MISSING COLUMNS TO PROFILES & UNIQUE INDEX
+-- Handling older templates that lack these foundation columns
 -- ═══════════════════════════════════════════════════════
+
+do $$
+begin
+  create type public.mh_user_role as enum ('buyer', 'seller', 'both', 'admin', 'supplier_success');
+exception when duplicate_object then null;
+end $$;
+
+do $$
+begin
+  create type public.mh_profile_status as enum ('incomplete', 'in_progress', 'complete');
+exception when duplicate_object then null;
+end $$;
+
+do $$
+begin
+  create type public.mh_verification_status as enum ('draft', 'pending', 'in_review', 'approved', 'rejected', 'expired');
+exception when duplicate_object then null;
+end $$;
+
+alter table if exists public.profiles 
+  add column if not exists email text,
+  add column if not exists full_name text,
+  add column if not exists avatar_url text,
+  add column if not exists phone text,
+  add column if not exists role public.mh_user_role not null default 'buyer',
+  add column if not exists profile_status public.mh_profile_status not null default 'incomplete',
+  add column if not exists trust_level integer not null default 0,
+  add column if not exists onboarding_step integer not null default 1,
+  add column if not exists verification_status public.mh_verification_status not null default 'pending',
+  add column if not exists deleted_at timestamptz;
+
+-- Backfill emails from auth.users if they are missing
+update public.profiles p
+set email = lower(trim(u.email))
+from auth.users u
+where p.id = u.id::text and (p.email is null or p.email = '');
 
 create unique index if not exists profiles_email_unique_active
   on public.profiles(email)
@@ -53,14 +89,14 @@ create unique index if not exists profiles_email_unique_active
 -- ═══════════════════════════════════════════════════════
 
 create or replace function public.resolve_identity_by_email(lookup_email text)
-returns uuid
+returns text
 language plpgsql
 stable
 security definer
 set search_path = public
 as $$
 declare
-  existing_profile_id uuid;
+  existing_profile_id text;
 begin
   if lookup_email is null or lookup_email = '' then
     return null;
@@ -91,7 +127,7 @@ as $$
 declare
   requested_role public.mh_user_role;
   clean_email text;
-  existing_profile_id uuid;
+  existing_profile_id text;
   auth_provider_name text;
   provider_uid text;
 begin
@@ -262,7 +298,7 @@ select
   u.email,
   coalesce(u.last_sign_in_at, u.created_at)
 from auth.users u
-inner join public.profiles p on p.id = u.id
+inner join public.profiles p on p.id = u.id::text
 on conflict (profile_id, provider) do nothing;
 
 
@@ -275,7 +311,7 @@ alter table public.auth_providers enable row level security;
 -- Users can view their own provider links
 create policy "Users can view own providers"
   on public.auth_providers for select
-  using (profile_id = auth.uid() or auth_user_id = auth.uid());
+  using (profile_id = auth.uid()::text or auth_user_id = auth.uid());
 
 -- Only the system can insert/update (via security definer trigger)
 -- No direct insert/update/delete policies for regular users

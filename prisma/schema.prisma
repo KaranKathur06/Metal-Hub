@@ -39,6 +39,14 @@ model User {
   inquiries      Inquiry[]
   supplierProfile Supplier?
 
+  // Ops Relations
+  opsUserRoles    OpsUserRole[]
+  grantedRoles    OpsUserRole[]   @relation("GrantedRoles")
+  assignedLeads   Lead[]          @relation("AssignedLeads")
+  leadActivities  LeadActivity[]
+  auditLogs       AuditLog[]
+  notifications   Notification[]
+
   @@index([email])
   @@index([phone])
   @@index([role])
@@ -618,5 +626,168 @@ model RequirementCapability {
   @@map("requirement_capabilities")
 }
 
+// ============================================
+// 18. OPS ROLES (RBAC - Role-Based Access Control)
+// ============================================
+model OpsRole {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  displayName String   @map("display_name")
+  description String?
+  isSystem    Boolean  @default(false)  @map("is_system")
+  createdAt   DateTime @default(now())  @map("created_at")
+  updatedAt   DateTime @updatedAt       @map("updated_at")
 
+  permissions OpsRolePermission[]
+  users       OpsUserRole[]
 
+  @@map("ops_roles")
+}
+
+model OpsPermission {
+  id          String   @id @default(uuid())
+  code        String   @unique
+  module      String
+  resource    String
+  action      String
+  description String?
+  createdAt   DateTime @default(now())  @map("created_at")
+
+  roles OpsRolePermission[]
+
+  @@index([module])
+  @@index([resource])
+  @@map("ops_permissions")
+}
+
+model OpsRolePermission {
+  roleId       String   @map("role_id")
+  permissionId String   @map("permission_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  role       OpsRole       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission OpsPermission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@map("ops_role_permissions")
+}
+
+model OpsUserRole {
+  userId    String   @map("user_id")
+  roleId    String   @map("role_id")
+  grantedBy String   @map("granted_by")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role    OpsRole @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  granter User    @relation("GrantedRoles", fields: [grantedBy], references: [id])
+
+  @@id([userId, roleId])
+  @@map("ops_user_roles")
+}
+
+// ============================================
+// 19. CRM LEADS (Sales Pipeline)
+// ============================================
+model Lead {
+  id           String     @id @default(uuid())
+  companyName  String     @map("company_name")
+  contactName  String     @map("contact_name")
+  contactEmail String?    @map("contact_email")
+  contactPhone String?    @map("contact_phone")
+  source       String     @default("MANUAL")
+  stage        LeadStage  @default(NEW)
+  dealValue    Decimal?   @db.Decimal(12, 2) @map("deal_value")
+  probability  Int?       @default(0)
+  assignedTo   String?    @map("assigned_to")
+  notes        String?
+  nextFollowUp DateTime?  @map("next_follow_up")
+  lostReason   String?    @map("lost_reason")
+  convertedAt  DateTime?  @map("converted_at")
+  createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime   @updatedAt @map("updated_at")
+
+  assignee   User?          @relation("AssignedLeads", fields: [assignedTo], references: [id])
+  activities LeadActivity[]
+
+  @@index([stage])
+  @@index([assignedTo])
+  @@index([source])
+  @@index([createdAt])
+  @@map("leads")
+}
+
+enum LeadStage {
+  NEW
+  CONTACTED
+  QUALIFIED
+  NEGOTIATION
+  CONVERTED
+  LOST
+}
+
+model LeadActivity {
+  id        String   @id @default(uuid())
+  leadId    String   @map("lead_id")
+  userId    String   @map("user_id")
+  type      String
+  content   String
+  metadata  Json?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  lead Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([leadId])
+  @@index([userId])
+  @@index([createdAt])
+  @@map("lead_activities")
+}
+
+// ============================================
+// 20. ENHANCED AUDIT LOG
+// ============================================
+model AuditLog {
+  id         String   @id @default(uuid())
+  userId     String   @map("user_id")
+  action     String
+  resource   String
+  resourceId String?  @map("resource_id")
+  oldValue   Json?    @map("old_value")
+  newValue   Json?    @map("new_value")
+  ipAddress  String?  @map("ip_address")
+  userAgent  String?  @map("user_agent")
+  metadata   Json?
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([action])
+  @@index([resource])
+  @@index([resourceId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+// ============================================
+// 21. NOTIFICATION SYSTEM
+// ============================================
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  type      String
+  title     String
+  message   String
+  link      String?
+  isRead    Boolean  @default(false) @map("is_read")
+  priority  String   @default("normal")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead])
+  @@index([priority])
+  @@index([createdAt])
+  @@map("notifications")
+}
