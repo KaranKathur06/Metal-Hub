@@ -106,7 +106,7 @@ export function applySellerOnboardingPatch(
   const completedSteps = patch.markComplete ? [step.key] : [];
   const progress = getSellerOnboardingProgress(nextPayload, {
     completedSteps: completedSteps as SellerOnboardingStepKey[],
-    skippedSteps: [...nextSkippedSteps] as SellerOnboardingStepKey[],
+    skippedSteps: Array.from(nextSkippedSteps) as SellerOnboardingStepKey[],
   });
 
   return {
@@ -115,7 +115,7 @@ export function applySellerOnboardingPatch(
     draftPayload: nextPayload,
     completionPercentage: progress.percent,
     lastCompletedStep: patch.markComplete ? step.key : session.lastCompletedStep,
-    skippedSteps: [...nextSkippedSteps],
+    skippedSteps: Array.from(nextSkippedSteps),
     skippedStepDetails: nextSkippedStepDetails,
     isCompleted: progress.percent === 100,
     status: progress.percent === 100 ? "completed" : "active",

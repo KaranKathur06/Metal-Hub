@@ -70,7 +70,7 @@ export default function SellerOnboardingPage() {
   const markComplete = useCallback((stepKey: SellerOnboardingStepKey) => {
     setOnboardingState((prev) => ({
       ...prev,
-      completedSteps: [...new Set([...(prev.completedSteps || []), stepKey])],
+      completedSteps: Array.from(new Set([...(prev.completedSteps || []), stepKey])),
       draftSteps: (prev.draftSteps || []).filter((s) => s !== stepKey),
     }));
     // Move to next step
@@ -83,7 +83,7 @@ export default function SellerOnboardingPage() {
   const skipStep = useCallback((stepKey: SellerOnboardingStepKey) => {
     setOnboardingState((prev) => ({
       ...prev,
-      skippedSteps: [...new Set([...(prev.skippedSteps || []), stepKey])],
+      skippedSteps: Array.from(new Set([...(prev.skippedSteps || []), stepKey])),
     }));
     const idx = SELLER_ONBOARDING_STEPS.findIndex((s) => s.key === stepKey);
     if (idx < SELLER_ONBOARDING_STEPS.length - 1) {
