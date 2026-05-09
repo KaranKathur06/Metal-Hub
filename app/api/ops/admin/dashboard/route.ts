@@ -3,7 +3,11 @@ import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { PrismaClient } from '@prisma/client';
 
-const prisma = new PrismaClient();
+export const dynamic = 'force-dynamic';
+
+const globalForPrisma = globalThis as unknown as { prisma: PrismaClient };
+const prisma = globalForPrisma.prisma ?? new PrismaClient();
+if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
 
 export async function GET() {
   try {
@@ -19,23 +23,14 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Check admin role
     const dbUser = await prisma.user.findUnique({ where: { id: user.id }, select: { role: true } });
     if (!dbUser || dbUser.role !== 'ADMIN') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    // Aggregate dashboard KPIs
     const [
-      totalUsers,
-      activeUsers,
-      totalListings,
-      pendingListings,
-      approvedListings,
-      totalSuppliers,
-      pendingSuppliers,
-      totalPayments,
-      recentUsers,
+      totalUsers, activeUsers, totalListings, pendingListings,
+      approvedListings, totalSuppliers, pendingSuppliers, totalPayments, recentUsers,
     ] = await Promise.all([
       prisma.user.count(),
       prisma.user.count({ where: { status: 'ACTIVE' } }),
@@ -51,16 +46,9 @@ export async function GET() {
     ]);
 
     return NextResponse.json({
-      totalUsers,
-      activeUsers,
-      totalListings,
-      pendingListings,
-      approvedListings,
-      totalSuppliers,
-      pendingSuppliers,
-      totalPayments,
-      recentUsers,
-      timestamp: new Date().toISOString(),
+      totalUsers, activeUsers, totalListings, pendingListings,
+      approvedListings, totalSuppliers, pendingSuppliers, totalPayments,
+      recentUsers, timestamp: new Date().toISOString(),
     });
   } catch (error: any) {
     console.error('[OPS] Admin dashboard error:', error);
