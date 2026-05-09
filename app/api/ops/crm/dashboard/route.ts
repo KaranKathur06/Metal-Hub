@@ -3,7 +3,11 @@ import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { PrismaClient } from '@prisma/client';
 
-const prisma = new PrismaClient();
+export const dynamic = 'force-dynamic';
+
+const globalForPrisma = globalThis as unknown as { prisma: PrismaClient };
+const prisma = globalForPrisma.prisma ?? new PrismaClient();
+if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
 
 export async function GET() {
   try {
@@ -24,16 +28,10 @@ export async function GET() {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    // CRM KPIs — using inquiry/listing data as proxy until Lead table is populated
     const [
-      totalInquiries,
-      openInquiries,
-      closedInquiries,
-      totalSuppliers,
-      verifiedSuppliers,
-      totalOffers,
-      acceptedOffers,
-      totalPayments,
+      totalInquiries, openInquiries, closedInquiries,
+      totalSuppliers, verifiedSuppliers,
+      totalOffers, acceptedOffers, totalPayments,
     ] = await Promise.all([
       prisma.inquiry.count(),
       prisma.inquiry.count({ where: { status: 'OPEN' } }),
@@ -50,15 +48,10 @@ export async function GET() {
       : 0;
 
     return NextResponse.json({
-      pipelineValue: totalInquiries,
-      openLeads: openInquiries,
-      convertedLeads: closedInquiries,
-      conversionRate,
-      totalSuppliers,
-      verifiedSuppliers,
-      totalOffers,
-      acceptedOffers,
-      totalPayments,
+      pipelineValue: totalInquiries, openLeads: openInquiries,
+      convertedLeads: closedInquiries, conversionRate,
+      totalSuppliers, verifiedSuppliers,
+      totalOffers, acceptedOffers, totalPayments,
       timestamp: new Date().toISOString(),
     });
   } catch (error: any) {
