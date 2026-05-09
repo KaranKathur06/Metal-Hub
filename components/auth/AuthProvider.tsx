@@ -6,6 +6,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -14,6 +15,7 @@ import {
   type SupabaseClient,
   type User,
 } from "@supabase/supabase-js";
+import { useRouter } from "next/navigation";
 import { getPublicDevelopmentTrustMode } from "../../lib/marketplace/platform-settings";
 import { getSupabaseBrowserClient } from "../../lib/supabase/browser-client";
 
@@ -84,42 +86,39 @@ type AuthContextValue = MarketplaceIdentity & {
   signOut: () => Promise<void>;
 };
 
+const EMPTY_IDENTITY: MarketplaceIdentity = {
+  profile: null,
+  company: null,
+  sellerProfile: null,
+  buyerProfile: null,
+};
+
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 function getDashboardHref(role: MarketplaceRole | null) {
-  if (role === "seller") {
-    return "/seller/dashboard";
-  }
-
-  if (role === "buyer") {
-    return "/buyer/dashboard";
-  }
-
-  if (role === "admin") {
-    return "/admin";
-  }
-
-  if (role === "both") {
-    return "/dashboard";
-  }
-
+  if (role === "seller") return "/seller/dashboard";
+  if (role === "buyer") return "/buyer/dashboard";
+  if (role === "admin") return "/admin";
+  if (role === "both") return "/dashboard";
   return "/dashboard";
 }
 
 function fallbackProfileFromUser(user: User | null): MarketplaceProfile | null {
-  if (!user) {
-    return null;
-  }
+  if (!user) return null;
 
   const metadata = user.user_metadata ?? {};
-  const role = metadata.role === "seller" || metadata.role === "both" || metadata.role === "admin" || metadata.role === "supplier_success"
-    ? metadata.role
-    : "buyer";
+  const role =
+    metadata.role === "seller" ||
+    metadata.role === "both" ||
+    metadata.role === "admin" ||
+    metadata.role === "supplier_success"
+      ? metadata.role
+      : "buyer";
 
   return {
     id: user.id,
     email: user.email ?? null,
-    full_name: typeof metadata.full_name === "string" ? metadata.full_name : null,
+    full_name: typeof metadata.full_name === "string" ? metadata.full_name : (typeof metadata.name === "string" ? metadata.name : null),
     phone: typeof metadata.phone === "string" ? metadata.phone : null,
     role,
     profile_status: "incomplete",
@@ -134,14 +133,7 @@ async function loadMarketplaceIdentity(
   supabase: SupabaseClient,
   user: User | null,
 ): Promise<MarketplaceIdentity> {
-  if (!user) {
-    return {
-      profile: null,
-      company: null,
-      sellerProfile: null,
-      buyerProfile: null,
-    };
-  }
+  if (!user) return EMPTY_IDENTITY;
 
   const [profileResult, sellerResult, buyerResult, companyResult] = await Promise.all([
     supabase
@@ -177,9 +169,7 @@ async function loadMarketplaceIdentity(
 }
 
 async function loadDevelopmentTrustMode(supabase: SupabaseClient | null) {
-  if (!supabase) {
-    return getPublicDevelopmentTrustMode();
-  }
+  if (!supabase) return getPublicDevelopmentTrustMode();
 
   const { data } = await supabase
     .from("platform_settings")
@@ -191,26 +181,18 @@ async function loadDevelopmentTrustMode(supabase: SupabaseClient | null) {
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const router = useRouter();
   const [supabase] = useState(() => getSupabaseBrowserClient());
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
-  const [identity, setIdentity] = useState<MarketplaceIdentity>({
-    profile: null,
-    company: null,
-    sellerProfile: null,
-    buyerProfile: null,
-  });
+  const [identity, setIdentity] = useState<MarketplaceIdentity>(EMPTY_IDENTITY);
   const [developmentTrustMode, setDevelopmentTrustMode] = useState(true);
   const [loading, setLoading] = useState(true);
+  const isSigningOut = useRef(false);
 
   const refreshIdentity = useCallback(async () => {
     if (!supabase) {
-      setIdentity({
-        profile: null,
-        company: null,
-        sellerProfile: null,
-        buyerProfile: null,
-      });
+      setIdentity(EMPTY_IDENTITY);
       return;
     }
 
@@ -228,6 +210,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setDevelopmentTrustMode(nextDevelopmentTrustMode);
   }, [supabase]);
 
+  // ── Initial hydration + auth state listener ──
   useEffect(() => {
     let mounted = true;
 
@@ -260,27 +243,47 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     hydrate();
 
     if (!supabase) {
-      return () => {
-        mounted = false;
-      };
+      return () => { mounted = false; };
     }
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event, nextSession) => {
-      const nextUser = nextSession?.user ?? null;
-      const [nextIdentity, nextDevelopmentTrustMode] = await Promise.all([
-        loadMarketplaceIdentity(supabase, nextUser),
-        loadDevelopmentTrustMode(supabase),
-      ]);
+    } = supabase.auth.onAuthStateChange(async (event, nextSession) => {
+      if (!mounted) return;
 
-      if (mounted) {
+      const nextUser = nextSession?.user ?? null;
+
+      // Handle SIGNED_OUT event — clear everything instantly
+      if (event === "SIGNED_OUT") {
+        setSession(null);
+        setUser(null);
+        setIdentity(EMPTY_IDENTITY);
+        setLoading(false);
+        return;
+      }
+
+      // For SIGNED_IN, TOKEN_REFRESHED, USER_UPDATED — reload identity
+      if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED" || event === "USER_UPDATED") {
         setSession(nextSession);
         setUser(nextUser);
-        setIdentity(nextIdentity);
-        setDevelopmentTrustMode(nextDevelopmentTrustMode);
-        setLoading(false);
+        setLoading(true);
+
+        const [nextIdentity, nextDevelopmentTrustMode] = await Promise.all([
+          loadMarketplaceIdentity(supabase, nextUser),
+          loadDevelopmentTrustMode(supabase),
+        ]);
+
+        if (mounted) {
+          setIdentity(nextIdentity);
+          setDevelopmentTrustMode(nextDevelopmentTrustMode);
+          setLoading(false);
+        }
+        return;
       }
+
+      // Fallback for any other event
+      setSession(nextSession);
+      setUser(nextUser);
     });
 
     return () => {
@@ -289,21 +292,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, [supabase]);
 
+  // ── Sign out with full cleanup ──
   const signOut = useCallback(async () => {
-    if (!supabase) {
-      return;
-    }
+    if (!supabase || isSigningOut.current) return;
 
-    await supabase.auth.signOut();
-    setSession(null);
-    setUser(null);
-    setIdentity({
-      profile: null,
-      company: null,
-      sellerProfile: null,
-      buyerProfile: null,
-    });
-  }, [supabase]);
+    isSigningOut.current = true;
+
+    try {
+      // 1. Clear local state immediately for instant UI feedback
+      setSession(null);
+      setUser(null);
+      setIdentity(EMPTY_IDENTITY);
+
+      // 2. Sign out from Supabase (clears cookies + server session)
+      await supabase.auth.signOut();
+
+      // 3. Navigate to home page
+      router.push("/");
+      router.refresh();
+    } catch (err) {
+      console.error("[MetalHub] Sign out error:", err);
+      // Still clear state even on error
+      setSession(null);
+      setUser(null);
+      setIdentity(EMPTY_IDENTITY);
+      router.push("/");
+    } finally {
+      isSigningOut.current = false;
+    }
+  }, [supabase, router]);
 
   const value = useMemo<AuthContextValue>(() => {
     const role = identity.profile?.role ?? null;

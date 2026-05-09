@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
-import { createClient } from "@supabase/supabase-js"
+import { createServerClient } from "@supabase/ssr"
 
 // Routes that require authentication
 const PROTECTED_PREFIXES = [
@@ -20,28 +20,58 @@ const AUTH_ROUTES = ["/login", "/register"]
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
-  // Check if Supabase env vars exist
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
   if (!supabaseUrl || !supabaseAnonKey) {
     return NextResponse.next()
   }
 
-  // Get the session token from cookies
-  const accessToken = request.cookies.get("sb-lrfvfvxfjpowskzqebar-auth-token")?.value
-    || request.cookies.get("sb-access-token")?.value
+  // Create a mutable response so @supabase/ssr can set/refresh cookies
+  let response = NextResponse.next({
+    request: { headers: request.headers },
+  })
+
+  const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
+    cookies: {
+      getAll() {
+        return request.cookies.getAll()
+      },
+      setAll(cookiesToSet) {
+        // Write cookies into the mutable response
+        cookiesToSet.forEach(({ name, value, options }) => {
+          request.cookies.set(name, value)
+          response.cookies.set(name, value, options)
+        })
+      },
+    },
+  })
+
+  // Refresh the session — this also refreshes expired access tokens
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
 
   const isProtected = PROTECTED_PREFIXES.some((prefix) => pathname.startsWith(prefix))
   const isAuthRoute = AUTH_ROUTES.some((route) => pathname === route)
 
-  // If no token and trying to access protected route, redirect to login
-  if (isProtected && !accessToken) {
+  // Unauthenticated → protected route: redirect to login
+  if (isProtected && !user) {
     const loginUrl = new URL("/login", request.url)
     loginUrl.searchParams.set("redirect", pathname)
     return NextResponse.redirect(loginUrl)
   }
 
-  return NextResponse.next()
+  // Authenticated → auth route: redirect to dashboard
+  if (isAuthRoute && user) {
+    const role = user.user_metadata?.role
+    let dashboardUrl = "/dashboard"
+    if (role === "seller") dashboardUrl = "/seller/dashboard"
+    else if (role === "buyer") dashboardUrl = "/buyer/dashboard"
+    else if (role === "admin") dashboardUrl = "/admin"
+    return NextResponse.redirect(new URL(dashboardUrl, request.url))
+  }
+
+  return response
 }
 
 export const config = {

@@ -1,8 +1,8 @@
 "use client"
 
-import { useState } from "react"
+import { Suspense, useState } from "react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { Mail, Lock, Loader2, CheckCircle, Eye, EyeOff, AlertCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -10,8 +10,17 @@ import { cn } from "@/lib/utils"
 import { useAuth } from "@/components/auth/AuthProvider"
 
 export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="flex h-screen items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-slate-400" /></div>}>
+      <LoginForm />
+    </Suspense>
+  )
+}
+
+function LoginForm() {
   const router = useRouter()
-  const { supabase } = useAuth()
+  const searchParams = useSearchParams()
+  const { supabase, refreshIdentity } = useAuth()
   const [isLoading, setIsLoading] = useState(false)
   const [method, setMethod] = useState<"email" | "otp">("email")
   const [showPassword, setShowPassword] = useState(false)
@@ -20,6 +29,15 @@ export default function LoginPage() {
     email: "", password: "", phone: "", otp: "",
   })
   const [otpSent, setOtpSent] = useState(false)
+
+  // Determine where to redirect after login
+  const getRedirectPath = (role?: string) => {
+    const redirectParam = searchParams.get("redirect")
+    if (redirectParam) return redirectParam
+    if (role === "seller" || role === "both") return "/seller/dashboard"
+    if (role === "admin") return "/admin"
+    return "/marketplace"
+  }
 
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -37,8 +55,10 @@ export default function LoginPage() {
         setError(authError.message); return
       }
       if (data.session) {
+        // Refresh the identity context so the navbar updates immediately
+        await refreshIdentity()
         const role = data.user?.user_metadata?.role || "buyer"
-        router.push(role === "seller" || role === "both" ? "/seller/dashboard" : role === "admin" ? "/admin" : "/marketplace")
+        router.push(getRedirectPath(role))
         router.refresh()
       }
     } catch (err: any) { setError(err?.message || "An unexpected error occurred") }
@@ -65,7 +85,11 @@ export default function LoginPage() {
         phone: formData.phone, token: formData.otp, type: "sms",
       })
       if (verifyError) { setError(verifyError.message); return }
-      if (data.session) { router.push("/marketplace"); router.refresh() }
+      if (data.session) {
+        await refreshIdentity()
+        router.push(getRedirectPath())
+        router.refresh()
+      }
     } catch (err: any) { setError(err?.message || "OTP verification failed") }
     finally { setIsLoading(false) }
   }
@@ -73,9 +97,10 @@ export default function LoginPage() {
   const handleGoogleLogin = async () => {
     if (!supabase) { setError("Auth service unavailable."); return }
     setError(null)
+    const redirectTo = searchParams.get("redirect") || "/marketplace"
     const { error: oauthError } = await supabase.auth.signInWithOAuth({
       provider: "google",
-      options: { redirectTo: `${window.location.origin}/marketplace` },
+      options: { redirectTo: `${window.location.origin}${redirectTo}` },
     })
     if (oauthError) setError(oauthError.message)
   }

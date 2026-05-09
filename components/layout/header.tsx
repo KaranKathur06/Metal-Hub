@@ -1,8 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Bell, Building2, ChevronDown, Cog, Factory, FlaskConical,
   GitBranch, LayoutDashboard, LogOut, Menu, Package, Search,
@@ -161,6 +161,8 @@ export function Header() {
     dashboardHref, onboardingIncomplete, signOut,
   } = useAuth();
 
+  const navItems = isAuthenticated ? getAuthenticatedNavItems(role) : [];
+
   useEffect(() => { setMobileOpen(false); setActiveMenu(null); }, [pathname]);
 
   // ── Hover intent system ──
@@ -171,7 +173,7 @@ export function Header() {
 
   const scheduleClose = useCallback(() => {
     if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
-    closeTimerRef.current = setTimeout(() => { setActiveMenu(null); }, 160);
+    closeTimerRef.current = setTimeout(() => { setActiveMenu(null); }, 200);
   }, []);
 
   const cancelClose = useCallback(() => {
@@ -183,7 +185,6 @@ export function Header() {
   // Cleanup timer on unmount
   useEffect(() => () => { if (closeTimerRef.current) clearTimeout(closeTimerRef.current); }, []);
 
-  const navItems = isAuthenticated ? getAuthenticatedNavItems(role) : [];
   const capabilities = taxonomy?.capabilities ?? [];
   const industries = taxonomy?.industries ?? [];
   const categories = taxonomy?.categories ?? [];
@@ -282,10 +283,10 @@ export function Header() {
                       </Button>
                     </Link>
 
-                    {/* User dropdown */}
+                    {/* ═══ User dropdown (Radix portaled) ═══ */}
                     <DropdownMenu.Root open={userMenuOpen} onOpenChange={setUserMenuOpen}>
                       <DropdownMenu.Trigger asChild>
-                        <button type="button" className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 hover:bg-slate-100">
+                        <button type="button" className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 hover:bg-slate-100" aria-label="Account menu">
                           {profile?.avatar_url ? (
                             <img className="h-7 w-7 rounded-full object-cover ring-2 ring-slate-200" src={profile.avatar_url} alt="" />
                           ) : (
@@ -293,11 +294,15 @@ export function Header() {
                               {getInitials(profile?.full_name, profile?.email)}
                             </span>
                           )}
-                          <ChevronDown className="h-3 w-3 text-slate-400" />
+                          <ChevronDown className={cn('h-3 w-3 text-slate-400 transition-transform', userMenuOpen && 'rotate-180')} />
                         </button>
                       </DropdownMenu.Trigger>
                       <DropdownMenu.Portal>
-                        <DropdownMenu.Content sideOffset={8} align="end" className="z-[60] min-w-[240px] overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_16px_48px_rgba(0,0,0,0.12)]">
+                        <DropdownMenu.Content
+                          sideOffset={8}
+                          align="end"
+                          className="z-[9999] min-w-[260px] overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_16px_48px_rgba(0,0,0,0.14)] animate-in fade-in-0 zoom-in-95"
+                        >
                           <div className="border-b border-slate-100 px-4 py-3">
                             <div className="truncate text-sm font-bold text-slate-900">{profile?.full_name || 'MetalHub User'}</div>
                             <div className="truncate text-xs text-slate-500">{profile?.email}</div>
@@ -306,13 +311,28 @@ export function Header() {
                           <div className="max-h-64 overflow-y-auto py-1">
                             {navItems.map((item) => (
                               <DropdownMenu.Item key={`${item.label}-${item.href}`} asChild>
-                                <Link href={item.href} className="block px-4 py-2 text-sm text-slate-700 outline-none hover:bg-slate-50">{item.label}</Link>
+                                <Link href={item.href} className="block px-4 py-2 text-sm text-slate-700 outline-none hover:bg-slate-50 focus:bg-slate-50">{item.label}</Link>
                               </DropdownMenu.Item>
                             ))}
                           </div>
                           <div className="border-t border-slate-100 py-1">
-                            <DropdownMenu.Item asChild><Link href="/settings" className="flex items-center gap-2 px-4 py-2 text-sm text-slate-700 outline-none hover:bg-slate-50"><Settings className="h-4 w-4" /> Settings</Link></DropdownMenu.Item>
-                            <DropdownMenu.Item asChild><button type="button" className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-red-600 outline-none hover:bg-red-50" onClick={() => void signOut()}><LogOut className="h-4 w-4" /> Logout</button></DropdownMenu.Item>
+                            <DropdownMenu.Item asChild>
+                              <Link href="/settings" className="flex items-center gap-2 px-4 py-2 text-sm text-slate-700 outline-none hover:bg-slate-50 focus:bg-slate-50">
+                                <Settings className="h-4 w-4" /> Settings
+                              </Link>
+                            </DropdownMenu.Item>
+                            <DropdownMenu.Item asChild>
+                              <button
+                                type="button"
+                                className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-red-600 outline-none hover:bg-red-50 focus:bg-red-50"
+                                onClick={() => {
+                                  setUserMenuOpen(false);
+                                  void signOut();
+                                }}
+                              >
+                                <LogOut className="h-4 w-4" /> Logout
+                              </button>
+                            </DropdownMenu.Item>
                           </div>
                         </DropdownMenu.Content>
                       </DropdownMenu.Portal>
@@ -336,11 +356,11 @@ export function Header() {
 
         {/* ════════════════════════════════════════════════
             FULL-WIDTH MEGA MENU BAND
-            Attached directly below navbar, spans viewport
+            z-[60] ensures it renders ABOVE any overlay and portaled dropdowns
             ════════════════════════════════════════════════ */}
         {activeMenu && (
           <div
-            className="absolute left-0 right-0 z-40 border-b border-slate-200 bg-white shadow-[0_8px_30px_rgba(0,0,0,0.08)]"
+            className="absolute left-0 right-0 z-[60] border-b border-slate-200 bg-white shadow-[0_8px_30px_rgba(0,0,0,0.08)]"
             style={{ top: '100%' }}
             onMouseEnter={cancelClose}
             onMouseLeave={scheduleClose}
@@ -355,11 +375,10 @@ export function Header() {
         )}
       </header>
 
-      {/* Overlay to close menu on click outside */}
+      {/* Backdrop overlay — click to dismiss mega menu */}
       {activeMenu && (
         <div
-          className="fixed inset-0 z-40"
-          style={{ top: '116px' }}
+          className="fixed inset-0 z-[55] bg-black/5"
           onClick={closeMenu}
           aria-hidden="true"
         />
@@ -367,7 +386,7 @@ export function Header() {
 
       {/* ── Mobile Menu ── */}
       {mobileOpen && (
-        <div className="fixed inset-x-0 top-16 bottom-0 z-50 overflow-y-auto border-t bg-white lg:hidden">
+        <div className="fixed inset-x-0 top-16 bottom-0 z-[70] overflow-y-auto border-t bg-white lg:hidden">
           <div className="mx-auto max-w-lg px-4 py-4">
             <Link href="/" className="block rounded-lg px-3 py-2.5 text-sm font-semibold text-slate-900 hover:bg-slate-50">Home</Link>
             <Link href="/marketplace" className="block rounded-lg px-3 py-2.5 text-sm font-semibold text-slate-900 hover:bg-slate-50">Marketplace</Link>
@@ -383,9 +402,13 @@ export function Header() {
             ) : isAuthenticated ? (
               <div className="space-y-1">
                 <div className="mb-3 flex items-center gap-3 px-3">
-                  <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-[#1e3a8a] to-[#3b82f6] text-xs font-bold text-white">
-                    {getInitials(profile?.full_name, profile?.email)}
-                  </span>
+                  {profile?.avatar_url ? (
+                    <img className="h-9 w-9 rounded-full object-cover ring-2 ring-slate-200" src={profile.avatar_url} alt="" />
+                  ) : (
+                    <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-[#1e3a8a] to-[#3b82f6] text-xs font-bold text-white">
+                      {getInitials(profile?.full_name, profile?.email)}
+                    </span>
+                  )}
                   <div>
                     <div className="text-sm font-bold text-slate-900">{profile?.full_name || 'MetalHub User'}</div>
                     <div className="text-xs text-slate-500">{profile?.email}</div>
@@ -396,6 +419,9 @@ export function Header() {
                 ))}
                 <div className="my-2 border-t border-slate-100" />
                 <Link href="/post-requirement" className="block rounded-lg px-3 py-2 text-sm font-bold text-blue-700 hover:bg-blue-50">Post Requirement</Link>
+                <Link href="/settings" className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
+                  <Settings className="h-4 w-4" /> Settings
+                </Link>
                 <button type="button" onClick={() => void signOut()} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50"><LogOut className="h-4 w-4" /> Logout</button>
               </div>
             ) : (
