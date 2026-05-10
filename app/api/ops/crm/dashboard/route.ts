@@ -1,27 +1,37 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
-import { PrismaClient } from '@prisma/client';
 
 export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
-const globalForPrisma = globalThis as unknown as { prisma: PrismaClient };
-const prisma = globalForPrisma.prisma ?? new PrismaClient();
-if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
+function getPrisma() {
+  const { PrismaClient } = require('@prisma/client');
+  const g = globalThis as any;
+  if (!g.__opsPrisma) g.__opsPrisma = new PrismaClient();
+  return g.__opsPrisma;
+}
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+    if (!supabaseUrl || !supabaseKey) {
+      return NextResponse.json({ error: 'Server misconfigured' }, { status: 500 });
+    }
+
     const cookieStore = cookies();
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      { cookies: { getAll: () => cookieStore.getAll(), setAll: () => {} } }
-    );
+    const supabase = createServerClient(supabaseUrl, supabaseKey, {
+      cookies: { getAll: () => cookieStore.getAll(), setAll: () => {} },
+    });
 
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const prisma = getPrisma();
 
     const dbUser = await prisma.user.findUnique({ where: { id: user.id }, select: { role: true } });
     if (!dbUser || dbUser.role !== 'ADMIN') {
@@ -55,7 +65,7 @@ export async function GET() {
       timestamp: new Date().toISOString(),
     });
   } catch (error: any) {
-    console.error('[OPS] CRM dashboard error:', error);
+    console.error('[OPS] CRM dashboard error:', error?.message);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
