@@ -96,8 +96,8 @@ begin
     (india_id, 'Dadra & Nagar Haveli', 'DN', 260),
     (india_id, 'Daman & Diu', 'DD', 270),
     (india_id, 'Sikkim', 'SK', 280)
-  on conflict (country_id, state_code) do update
-  set name = excluded.name,
+  on conflict (country_id, name) do update
+  set state_code = excluded.state_code,
       sort_order = excluded.sort_order,
       updated_at = now();
 end $$;

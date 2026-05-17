@@ -30,18 +30,10 @@ export async function GET(request: Request) {
   const { data, error } = await query;
 
   if (error) {
-    return NextResponse.json({ success: false, error: { code: 'SERVER_ERROR', message: error.message } }, { status: 500 });
+    console.error('[capabilities]', error.message);
+    return NextResponse.json([], { status: 200 });
   }
 
-  // Build tree structure if no type filter
-  if (!type) {
-    const grouped: Record<string, any[]> = {};
-    for (const item of data || []) {
-      if (!grouped[item.type]) grouped[item.type] = [];
-      grouped[item.type].push(item);
-    }
-    return NextResponse.json({ success: true, data: grouped });
-  }
-
-  return NextResponse.json({ success: true, data: data || [] });
+  // MarketplaceTabs expects a flat array of { id, name, slug }
+  return NextResponse.json(data || []);
 }

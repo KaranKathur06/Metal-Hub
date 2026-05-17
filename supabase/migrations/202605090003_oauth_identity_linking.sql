@@ -12,7 +12,7 @@
 
 create table if not exists public.auth_providers (
   id uuid primary key default gen_random_uuid(),
-  profile_id text not null references public.profiles(id) on delete cascade,
+  profile_id uuid not null references public.profiles(id) on delete cascade,
   auth_user_id uuid not null references auth.users(id) on delete cascade,
   provider text not null,           -- 'email', 'google', 'apple', etc.
   provider_user_id text,            -- external provider user ID (e.g. Google sub)
@@ -76,7 +76,7 @@ alter table if exists public.profiles
 update public.profiles p
 set email = lower(trim(u.email))
 from auth.users u
-where p.id = u.id::text and (p.email is null or p.email = '');
+where p.id = u.id and (p.email is null or p.email = '');
 
 create unique index if not exists profiles_email_unique_active
   on public.profiles(email)
@@ -88,15 +88,16 @@ create unique index if not exists profiles_email_unique_active
 -- Called by the trigger to find existing profile by email
 -- ═══════════════════════════════════════════════════════
 
+drop function if exists public.resolve_identity_by_email(text);
 create or replace function public.resolve_identity_by_email(lookup_email text)
-returns text
+returns uuid
 language plpgsql
 stable
 security definer
 set search_path = public
 as $$
 declare
-  existing_profile_id text;
+  existing_profile_id uuid;
 begin
   if lookup_email is null or lookup_email = '' then
     return null;
@@ -127,7 +128,7 @@ as $$
 declare
   requested_role public.mh_user_role;
   clean_email text;
-  existing_profile_id text;
+  existing_profile_id uuid;
   auth_provider_name text;
   provider_uid text;
 begin
@@ -163,7 +164,7 @@ begin
     existing_profile_id := public.resolve_identity_by_email(clean_email);
   end if;
 
-  if existing_profile_id is not null and existing_profile_id != new.id then
+  if existing_profile_id is not null and existing_profile_id != new.id::uuid then
     -- ════════════════════════════════════════════════════
     -- IDENTITY MERGE: Profile already exists for this email
     -- Link this new auth user to the existing profile
@@ -229,7 +230,7 @@ begin
       avatar_url
     )
     values (
-      new.id,
+      new.id::uuid,
       clean_email,
       coalesce(new.raw_user_meta_data->>'full_name', new.raw_user_meta_data->>'name'),
       coalesce(new.phone, new.raw_user_meta_data->>'phone'),
@@ -298,7 +299,7 @@ select
   u.email,
   coalesce(u.last_sign_in_at, u.created_at)
 from auth.users u
-inner join public.profiles p on p.id = u.id::text
+inner join public.profiles p on p.id = u.id
 on conflict (profile_id, provider) do nothing;
 
 
@@ -311,7 +312,7 @@ alter table public.auth_providers enable row level security;
 -- Users can view their own provider links
 create policy "Users can view own providers"
   on public.auth_providers for select
-  using (profile_id = auth.uid()::text or auth_user_id = auth.uid());
+  using (profile_id = auth.uid() or auth_user_id = auth.uid());
 
 -- Only the system can insert/update (via security definer trigger)
 -- No direct insert/update/delete policies for regular users

@@ -1,4 +1,11 @@
-const BACKEND_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001';
+/**
+ * Metal Hub — Server-Side Content Fetchers
+ *
+ * Fetches banners, capabilities, and taxonomy data directly from Supabase.
+ * No legacy NestJS proxy — all data comes from the database.
+ */
+
+import { createSupabaseServerClient } from '@/lib/supabase/server-client';
 
 type Banner = {
   id: string;
@@ -85,38 +92,82 @@ const fallbackCapabilities: Capability[] = [
   },
 ];
 
-async function fetchBackend<T>(path: string): Promise<T | null> {
-  try {
-    const response = await fetch(`${BACKEND_BASE}/api${path}`, {
-      cache: 'no-store',
-    });
-
-    if (!response.ok) {
-      return null;
-    }
-
-    return (await response.json()) as T;
-  } catch {
-    return null;
-  }
-}
-
 export async function getHeroBanners(): Promise<Banner[]> {
-  const banners = await fetchBackend<Banner[]>('/banners');
-  return banners && banners.length > 0 ? banners : fallbackBanners;
+  try {
+    const supabase = createSupabaseServerClient();
+    if (!supabase) return fallbackBanners;
+
+    const { data, error } = await supabase
+      .from('banners')
+      .select('id, title, subtitle, image_url, cta_text, cta_link')
+      .eq('is_active', true)
+      .order('order_index', { ascending: true });
+
+    if (error || !data || data.length === 0) return fallbackBanners;
+
+    return data.map((b: any) => ({
+      id: b.id,
+      title: b.title,
+      subtitle: b.subtitle || '',
+      imageUrl: b.image_url,
+      ctaText: b.cta_text || 'Explore',
+      ctaLink: b.cta_link || '/marketplace',
+    }));
+  } catch {
+    return fallbackBanners;
+  }
 }
 
 export async function getCapabilities(): Promise<Capability[]> {
-  const capabilities = await fetchBackend<Capability[]>('/capabilities');
-  return capabilities && capabilities.length > 0 ? capabilities : fallbackCapabilities;
+  try {
+    const supabase = createSupabaseServerClient();
+    if (!supabase) return fallbackCapabilities;
+
+    const { data, error } = await supabase
+      .from('taxonomy')
+      .select('id, name, slug, icon, description')
+      .eq('type', 'capability')
+      .eq('is_active', true)
+      .order('sort_order', { ascending: true });
+
+    if (error || !data || data.length === 0) return fallbackCapabilities;
+
+    return data.map((c: any) => ({
+      id: c.id,
+      name: c.name,
+      slug: c.slug,
+      imageUrl: `/${c.name.toLowerCase().replace(/\s+/g, '-')}.jpg`,
+      description: c.description || '',
+    }));
+  } catch {
+    return fallbackCapabilities;
+  }
 }
 
 export async function getCapabilityBySlug(slug: string): Promise<Capability | null> {
-  const capability = await fetchBackend<Capability>(`/capabilities/${slug}`);
+  try {
+    const supabase = createSupabaseServerClient();
+    if (!supabase) return fallbackCapabilities.find((item) => item.slug === slug) || null;
 
-  if (capability) {
-    return capability;
+    const { data, error } = await supabase
+      .from('taxonomy')
+      .select('id, name, slug, icon, description')
+      .eq('slug', slug)
+      .eq('type', 'capability')
+      .maybeSingle();
+
+    if (error || !data) {
+      return fallbackCapabilities.find((item) => item.slug === slug) || null;
+    }
+
+    return {
+      id: data.id,
+      name: data.name,
+      slug: data.slug,
+      imageUrl: `/${data.name.toLowerCase().replace(/\s+/g, '-')}.jpg`,
+      description: data.description || '',
+    };
+  } catch {
+    return fallbackCapabilities.find((item) => item.slug === slug) || null;
   }
-
-  return fallbackCapabilities.find((item) => item.slug === slug) || null;
 }
