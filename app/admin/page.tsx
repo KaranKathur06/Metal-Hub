@@ -114,19 +114,39 @@ export default function AdminDashboardPage() {
       cache: 'no-store',
       credentials: 'include',
     });
-    const data = await response.json();
-    if (!response.ok) throw new Error(data?.message || 'Failed to load dashboard');
-    setStats(data);
+    const json = await response.json();
+    if (!response.ok) throw new Error(json?.error?.message || 'Failed to load dashboard');
+    // Map new API format to existing state shape
+    const d = json.data;
+    setStats({
+      totalUsers: d?.users?.total || 0,
+      totalListings: d?.listings?.total || 0,
+      pendingListings: d?.listings?.pendingModeration || 0,
+      pendingSuppliers: d?.sellers?.pendingVerification || 0,
+      totalBanners: 0,
+      totalCapabilities: 0,
+    });
   };
 
   const loadBanners = async () => {
-    const response = await fetch('/api/admin/banners', {
+    const response = await fetch('/api/admin/banners?active=false', {
       cache: 'no-store',
       credentials: 'include',
     });
-    const data = await response.json();
-    if (!response.ok) throw new Error(data?.message || 'Failed to load banners');
-    setBanners(Array.isArray(data) ? data : []);
+    const json = await response.json();
+    if (!response.ok) throw new Error(json?.error?.message || 'Failed to load banners');
+    // Map snake_case to camelCase for existing UI
+    const items = (json.data || []).map((b: any) => ({
+      id: b.id,
+      title: b.title,
+      subtitle: b.subtitle,
+      imageUrl: b.image_url,
+      ctaText: b.cta_text,
+      ctaLink: b.cta_link,
+      isActive: b.is_active,
+      orderIndex: b.order_index,
+    }));
+    setBanners(items);
   };
 
   const loadCapabilities = async () => {
@@ -134,9 +154,21 @@ export default function AdminDashboardPage() {
       cache: 'no-store',
       credentials: 'include',
     });
-    const data = await response.json();
-    if (!response.ok) throw new Error(data?.message || 'Failed to load capabilities');
-    setCapabilities(Array.isArray(data) ? data : []);
+    const json = await response.json();
+    if (!response.ok) throw new Error(json?.error?.message || 'Failed to load capabilities');
+    const items = (json.data || []).map((c: any) => ({
+      id: c.id,
+      name: c.name,
+      slug: c.slug,
+      imageUrl: c.icon || '',
+      description: c.description || '',
+      heroImageUrl: null,
+      heroTitle: null,
+      heroSubtitle: null,
+      isActive: c.is_active,
+      orderIndex: c.sort_order,
+    }));
+    setCapabilities(items);
   };
 
   const loadPendingSuppliers = async () => {
@@ -144,9 +176,22 @@ export default function AdminDashboardPage() {
       cache: 'no-store',
       credentials: 'include',
     });
-    const data = await response.json();
-    if (!response.ok) throw new Error(data?.message || 'Failed to load suppliers');
-    setPendingSuppliers(data?.suppliers || []);
+    const json = await response.json();
+    if (!response.ok) throw new Error(json?.error?.message || 'Failed to load suppliers');
+    const items = (json.data || []).map((s: any) => ({
+      id: s.id,
+      companyName: s.company_name,
+      description: '',
+      location: s.companies?.city ? `${s.companies.city}, ${s.companies.state}` : '',
+      createdAt: s.created_at,
+      owner: {
+        profile: {
+          fullName: s.profiles?.full_name,
+          companyName: s.company_name,
+        },
+      },
+    }));
+    setPendingSuppliers(items);
   };
 
   const loadAll = async () => {
@@ -177,13 +222,19 @@ export default function AdminDashboardPage() {
     const response = await fetch('/api/admin/banners', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(bannerForm),
+      body: JSON.stringify({
+        title: bannerForm.title,
+        subtitle: bannerForm.subtitle,
+        image_url: bannerForm.imageUrl,
+        cta_text: bannerForm.ctaText,
+        cta_link: bannerForm.ctaLink,
+      }),
       credentials: 'include',
     });
 
     if (!response.ok) {
-      const data = await response.json();
-      setError(data?.message || 'Failed to create banner');
+      const json = await response.json();
+      setError(json?.error?.message || 'Failed to create banner');
       return;
     }
 
@@ -198,13 +249,19 @@ export default function AdminDashboardPage() {
     const response = await fetch('/api/admin/capabilities', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(capabilityForm),
+      body: JSON.stringify({
+        name: capabilityForm.name,
+        slug: capabilityForm.slug,
+        type: 'capability',
+        description: capabilityForm.description,
+        icon: capabilityForm.imageUrl,
+      }),
       credentials: 'include',
     });
 
     if (!response.ok) {
-      const data = await response.json();
-      setError(data?.message || 'Failed to create capability');
+      const json = await response.json();
+      setError(json?.error?.message || 'Failed to create capability');
       return;
     }
 
@@ -217,7 +274,7 @@ export default function AdminDashboardPage() {
     await fetch(`/api/admin/banners/${banner.id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ isActive: !banner.isActive }),
+      body: JSON.stringify({ is_active: !banner.isActive }),
       credentials: 'include',
     });
     await loadBanners();
@@ -227,7 +284,7 @@ export default function AdminDashboardPage() {
     await fetch(`/api/admin/capabilities/${capability.id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ isActive: !capability.isActive }),
+      body: JSON.stringify({ is_active: !capability.isActive }),
       credentials: 'include',
     });
     await loadCapabilities();
@@ -243,7 +300,7 @@ export default function AdminDashboardPage() {
     await fetch('/api/admin/banners/reorder', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ids: next.map((item) => item.id) }),
+      body: JSON.stringify({ items: next.map((item, i) => ({ id: item.id, order_index: i })) }),
       credentials: 'include',
     });
     await loadBanners();
@@ -259,7 +316,7 @@ export default function AdminDashboardPage() {
     await fetch('/api/admin/capabilities/reorder', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ids: next.map((item) => item.id) }),
+      body: JSON.stringify({ items: next.map((item, i) => ({ id: item.id, sort_order: i })) }),
       credentials: 'include',
     });
     await loadCapabilities();
@@ -286,6 +343,8 @@ export default function AdminDashboardPage() {
   const approveSupplier = async (id: string) => {
     await fetch(`/api/admin/suppliers/${id}/approve`, {
       method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'approve' }),
       credentials: 'include',
     });
     await loadPendingSuppliers();

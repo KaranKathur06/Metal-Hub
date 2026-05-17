@@ -121,21 +121,20 @@ export async function POST(request: Request) {
   }
 
   // ── Send OTP via email ──
-  // In production: use Resend, SendGrid, or Supabase Edge Functions
-  // For now: log in development, use Supabase auth.admin if available
-  const isDev = process.env.NODE_ENV === 'development';
+  const { sendEmail, otpEmailTemplate } = await import('@/lib/services/email');
+  const expiryMinutes = parseInt(process.env.OTP_EXPIRY_MINUTES || '10');
+  const template = otpEmailTemplate(otpCode, expiryMinutes);
 
-  if (isDev) {
-    console.log(`\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
-    console.log(`📧 OTP for ${email}: ${otpCode}`);
-    console.log(`   Purpose: ${purpose}`);
-    console.log(`   Expires: ${expiresAt.toISOString()}`);
-    console.log(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`);
-  } else {
-    // Production email delivery
-    // TODO: Integrate with Resend or SendGrid
-    // await sendOTPEmail(email, otpCode, purpose);
-    console.log(`[OTP] Sent to ${email} for ${purpose}`);
+  const emailResult = await sendEmail({
+    to: email,
+    subject: template.subject,
+    html: template.html,
+    text: template.text,
+  });
+
+  if (!emailResult.success) {
+    console.error('[OTP] Email delivery failed:', emailResult.error);
+    // Don't fail the request — the OTP is stored, user can retry
   }
 
   // ── Audit log ──

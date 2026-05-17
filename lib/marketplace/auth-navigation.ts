@@ -1,4 +1,4 @@
-export type MarketplaceRole = "buyer" | "seller" | "both" | "admin" | "super_admin" | "moderator" | "supplier_success";
+export type MarketplaceRole = "buyer" | "seller" | "both" | "admin" | "super_admin" | "moderator" | "supplier_success" | "support_agent" | "finance" | "marketing" | "manufacturer" | "distributor" | "logistics";
 
 export type MarketplaceNavItem = {
   label: string;
@@ -118,27 +118,28 @@ export const supplierSuccessNavItems: MarketplaceNavItem[] = [
 ];
 
 export function getDashboardHref(role: MarketplaceRole | null | undefined) {
-  if (role === "seller") {
-    return "/seller/dashboard";
+  switch (role) {
+    case "seller":
+    case "manufacturer":
+    case "distributor":
+    case "logistics":
+      return "/seller/dashboard";
+    case "buyer":
+      return "/buyer/dashboard";
+    case "admin":
+    case "super_admin":
+    case "finance":
+    case "marketing":
+      return "/admin";
+    case "moderator":
+    case "support_agent":
+      return "/ops";
+    case "supplier_success":
+      return "/ops/verification";
+    case "both":
+    default:
+      return "/dashboard";
   }
-
-  if (role === "buyer") {
-    return "/buyer/dashboard";
-  }
-
-  if (role === "admin" || role === "super_admin") {
-    return "/admin";
-  }
-
-  if (role === "moderator") {
-    return "/ops";
-  }
-
-  if (role === "supplier_success") {
-    return "/ops/verification";
-  }
-
-  return "/dashboard";
 }
 
 export function getAuthenticatedNavItems(role: MarketplaceRole | null | undefined) {
@@ -172,21 +173,26 @@ export function getAuthenticatedNavItems(role: MarketplaceRole | null | undefine
 }
 
 export function getOnboardingHref(role: MarketplaceRole | null | undefined) {
-  if (role === "seller") {
-    return "/onboarding/seller";
+  switch (role) {
+    case "seller":
+    case "manufacturer":
+    case "distributor":
+    case "logistics":
+      return "/onboarding/seller";
+    case "buyer":
+      return "/onboarding/buyer";
+    case "both":
+      return "/onboarding";
+    case "supplier_success":
+    case "support_agent":
+    case "moderator":
+      return "/ops/suppliers";
+    case "admin":
+    case "super_admin":
+    case "finance":
+    case "marketing":
+      return "/admin";
+    default:
+      return "/onboarding";
   }
-
-  if (role === "buyer") {
-    return "/onboarding/buyer";
-  }
-
-  if (role === "both") {
-    return "/onboarding";
-  }
-
-  if (role === "supplier_success") {
-    return "/ops/suppliers";
-  }
-
-  return "/onboarding";
 }

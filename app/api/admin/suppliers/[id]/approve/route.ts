@@ -65,7 +65,7 @@ export async function POST(request: Request, { params }: RouteParams) {
       .eq('id', seller.company_id);
   }
 
-  // Notify seller
+  // Notify seller (in-app + email)
   if (seller.profile_id) {
     await auth.supabase.from('notifications').insert({
       user_id: seller.profile_id,
@@ -77,6 +77,23 @@ export async function POST(request: Request, { params }: RouteParams) {
       data: { seller_profile_id: seller.id, action },
       is_read: false,
     });
+
+    // Send email notification
+    const { data: sellerUser } = await auth.supabase
+      .from('profiles')
+      .select('email, full_name')
+      .eq('id', seller.profile_id)
+      .maybeSingle();
+
+    if (sellerUser?.email) {
+      const { sendEmail, verificationEmailTemplate } = await import('@/lib/services/email');
+      const template = verificationEmailTemplate(
+        sellerUser.full_name || 'Seller',
+        action === 'approve' ? 'approved' : 'rejected',
+        body.notes,
+      );
+      await sendEmail({ to: sellerUser.email, ...template });
+    }
   }
 
   // Audit

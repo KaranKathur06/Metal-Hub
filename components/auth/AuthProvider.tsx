@@ -19,7 +19,7 @@ import { useRouter } from "next/navigation";
 import { getPublicDevelopmentTrustMode } from "../../lib/marketplace/platform-settings";
 import { getSupabaseBrowserClient } from "../../lib/supabase/browser-client";
 
-export type MarketplaceRole = "buyer" | "seller" | "both" | "admin" | "super_admin" | "moderator" | "supplier_success";
+export type MarketplaceRole = "buyer" | "seller" | "both" | "admin" | "super_admin" | "moderator" | "supplier_success" | "support_agent" | "finance" | "marketing" | "manufacturer" | "distributor" | "logistics";
 export type ProfileStatus = "incomplete" | "in_progress" | "complete";
 export type VerificationStatus = "draft" | "pending" | "in_review" | "approved" | "rejected" | "expired";
 
@@ -108,15 +108,14 @@ function fallbackProfileFromUser(user: User | null): MarketplaceProfile | null {
   if (!user) return null;
 
   const metadata = user.user_metadata ?? {};
-  const role =
-    metadata.role === "seller" ||
-    metadata.role === "both" ||
-    metadata.role === "admin" ||
-    metadata.role === "super_admin" ||
-    metadata.role === "moderator" ||
-    metadata.role === "supplier_success"
-      ? metadata.role
-      : "buyer";
+  const VALID_ROLES: MarketplaceRole[] = [
+    "buyer", "seller", "both", "admin", "super_admin", "moderator",
+    "supplier_success", "support_agent", "finance", "marketing",
+    "manufacturer", "distributor", "logistics",
+  ];
+  const role: MarketplaceRole = VALID_ROLES.includes(metadata.role)
+    ? metadata.role
+    : "buyer";
 
   return {
     id: user.id,
