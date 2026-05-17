@@ -1,4 +1,4 @@
-export type MarketplaceRole = "buyer" | "seller" | "both" | "admin" | "supplier_success";
+export type MarketplaceRole = "buyer" | "seller" | "both" | "admin" | "super_admin" | "moderator" | "supplier_success";
 
 export type MarketplaceNavItem = {
   label: string;
@@ -126,8 +126,12 @@ export function getDashboardHref(role: MarketplaceRole | null | undefined) {
     return "/buyer/dashboard";
   }
 
-  if (role === "admin") {
+  if (role === "admin" || role === "super_admin") {
     return "/admin";
+  }
+
+  if (role === "moderator") {
+    return "/ops";
   }
 
   if (role === "supplier_success") {

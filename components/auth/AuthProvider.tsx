@@ -19,7 +19,7 @@ import { useRouter } from "next/navigation";
 import { getPublicDevelopmentTrustMode } from "../../lib/marketplace/platform-settings";
 import { getSupabaseBrowserClient } from "../../lib/supabase/browser-client";
 
-export type MarketplaceRole = "buyer" | "seller" | "both" | "admin" | "supplier_success";
+export type MarketplaceRole = "buyer" | "seller" | "both" | "admin" | "super_admin" | "moderator" | "supplier_success";
 export type ProfileStatus = "incomplete" | "in_progress" | "complete";
 export type VerificationStatus = "draft" | "pending" | "in_review" | "approved" | "rejected" | "expired";
 
@@ -98,7 +98,8 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 function getDashboardHref(role: MarketplaceRole | null) {
   if (role === "seller") return "/seller/dashboard";
   if (role === "buyer") return "/buyer/dashboard";
-  if (role === "admin") return "/admin";
+  if (role === "admin" || role === "super_admin") return "/admin";
+  if (role === "moderator") return "/ops";
   if (role === "both") return "/dashboard";
   return "/dashboard";
 }
@@ -111,6 +112,8 @@ function fallbackProfileFromUser(user: User | null): MarketplaceProfile | null {
     metadata.role === "seller" ||
     metadata.role === "both" ||
     metadata.role === "admin" ||
+    metadata.role === "super_admin" ||
+    metadata.role === "moderator" ||
     metadata.role === "supplier_success"
       ? metadata.role
       : "buyer";
@@ -196,14 +199,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    const { data } = await supabase.auth.getSession();
-    const currentSession = data.session ?? null;
-    const currentUser = currentSession?.user ?? null;
+    // Use getUser() for server-validated session (not getSession() which reads from local cache)
+    const { data: { user: currentUser } } = await supabase.auth.getUser();
+    const { data: sessionData } = await supabase.auth.getSession();
+    const currentSession = sessionData.session ?? null;
 
     setSession(currentSession);
-    setUser(currentUser);
+    setUser(currentUser ?? null);
     const [nextIdentity, nextDevelopmentTrustMode] = await Promise.all([
-      loadMarketplaceIdentity(supabase, currentUser),
+      loadMarketplaceIdentity(supabase, currentUser ?? null),
       loadDevelopmentTrustMode(supabase),
     ]);
     setIdentity(nextIdentity);
@@ -223,17 +227,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      const { data } = await supabase.auth.getSession();
-      const currentSession = data.session ?? null;
-      const currentUser = currentSession?.user ?? null;
+      // Use getUser() for authoritative server validation instead of getSession()
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      const { data: sessionData } = await supabase.auth.getSession();
+      const currentSession = sessionData.session ?? null;
       const [nextIdentity, nextDevelopmentTrustMode] = await Promise.all([
-        loadMarketplaceIdentity(supabase, currentUser),
+        loadMarketplaceIdentity(supabase, currentUser ?? null),
         loadDevelopmentTrustMode(supabase),
       ]);
 
       if (mounted) {
         setSession(currentSession);
-        setUser(currentUser);
+        setUser(currentUser ?? null);
         setIdentity(nextIdentity);
         setDevelopmentTrustMode(nextDevelopmentTrustMode);
         setLoading(false);

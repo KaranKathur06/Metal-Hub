@@ -1,7 +1,11 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { CheckCircle2, ImagePlus, Layers, ShieldCheck, RefreshCw, ArrowUp, ArrowDown, Trash2 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import {
+  CheckCircle2, ImagePlus, Layers, ShieldCheck, RefreshCw,
+  ArrowUp, ArrowDown, Trash2, Shield, AlertTriangle, Loader2,
+} from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -10,6 +14,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { formatDate } from '@/lib/utils';
+import { useAuth } from '@/components/auth/AuthProvider';
 
 type Banner = {
   id: string;
@@ -77,7 +82,9 @@ const defaultCapabilityForm = {
 };
 
 export default function AdminDashboardPage() {
-  const [token, setToken] = useState('');
+  const router = useRouter();
+  const { isAuthenticated, loading: authLoading, role, profile } = useAuth();
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -89,18 +96,23 @@ export default function AdminDashboardPage() {
   const [bannerForm, setBannerForm] = useState(defaultBannerForm);
   const [capabilityForm, setCapabilityForm] = useState(defaultCapabilityForm);
 
-  const authHeaders = useMemo(() => {
-    const base: Record<string, string> = {};
-    if (token) {
-      base.Authorization = `Bearer ${token}`;
-    }
-    return base;
-  }, [token]);
+  // ── RBAC Guard ──
+  const isAdmin = role === 'admin' || role === 'super_admin';
 
+  useEffect(() => {
+    if (!authLoading && !isAuthenticated) {
+      router.push('/login?redirect=/admin');
+    }
+    if (!authLoading && isAuthenticated && !isAdmin) {
+      router.push('/');
+    }
+  }, [authLoading, isAuthenticated, isAdmin, router]);
+
+  // ── API calls use cookies for auth (no manual token needed) ──
   const loadDashboard = async () => {
     const response = await fetch('/api/admin/dashboard', {
-      headers: authHeaders,
       cache: 'no-store',
+      credentials: 'include',
     });
     const data = await response.json();
     if (!response.ok) throw new Error(data?.message || 'Failed to load dashboard');
@@ -109,8 +121,8 @@ export default function AdminDashboardPage() {
 
   const loadBanners = async () => {
     const response = await fetch('/api/admin/banners', {
-      headers: authHeaders,
       cache: 'no-store',
+      credentials: 'include',
     });
     const data = await response.json();
     if (!response.ok) throw new Error(data?.message || 'Failed to load banners');
@@ -119,8 +131,8 @@ export default function AdminDashboardPage() {
 
   const loadCapabilities = async () => {
     const response = await fetch('/api/admin/capabilities', {
-      headers: authHeaders,
       cache: 'no-store',
+      credentials: 'include',
     });
     const data = await response.json();
     if (!response.ok) throw new Error(data?.message || 'Failed to load capabilities');
@@ -129,8 +141,8 @@ export default function AdminDashboardPage() {
 
   const loadPendingSuppliers = async () => {
     const response = await fetch('/api/admin/suppliers/pending', {
-      headers: authHeaders,
       cache: 'no-store',
+      credentials: 'include',
     });
     const data = await response.json();
     if (!response.ok) throw new Error(data?.message || 'Failed to load suppliers');
@@ -138,7 +150,7 @@ export default function AdminDashboardPage() {
   };
 
   const loadAll = async () => {
-    if (!token) return;
+    if (!isAdmin) return;
 
     setLoading(true);
     setError(null);
@@ -153,20 +165,20 @@ export default function AdminDashboardPage() {
   };
 
   useEffect(() => {
-    loadAll();
+    if (!authLoading && isAdmin) {
+      loadAll();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token]);
+  }, [authLoading, isAdmin]);
 
   const createBanner = async () => {
     if (!bannerForm.title || !bannerForm.subtitle || !bannerForm.imageUrl) return;
 
     const response = await fetch('/api/admin/banners', {
       method: 'POST',
-      headers: {
-        ...authHeaders,
-        'Content-Type': 'application/json',
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(bannerForm),
+      credentials: 'include',
     });
 
     if (!response.ok) {
@@ -185,11 +197,9 @@ export default function AdminDashboardPage() {
 
     const response = await fetch('/api/admin/capabilities', {
       method: 'POST',
-      headers: {
-        ...authHeaders,
-        'Content-Type': 'application/json',
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(capabilityForm),
+      credentials: 'include',
     });
 
     if (!response.ok) {
@@ -206,26 +216,20 @@ export default function AdminDashboardPage() {
   const toggleBanner = async (banner: Banner) => {
     await fetch(`/api/admin/banners/${banner.id}`, {
       method: 'PUT',
-      headers: {
-        ...authHeaders,
-        'Content-Type': 'application/json',
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ isActive: !banner.isActive }),
+      credentials: 'include',
     });
-
     await loadBanners();
   };
 
   const toggleCapability = async (capability: Capability) => {
     await fetch(`/api/admin/capabilities/${capability.id}`, {
       method: 'PUT',
-      headers: {
-        ...authHeaders,
-        'Content-Type': 'application/json',
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ isActive: !capability.isActive }),
+      credentials: 'include',
     });
-
     await loadCapabilities();
   };
 
@@ -238,13 +242,10 @@ export default function AdminDashboardPage() {
 
     await fetch('/api/admin/banners/reorder', {
       method: 'POST',
-      headers: {
-        ...authHeaders,
-        'Content-Type': 'application/json',
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ids: next.map((item) => item.id) }),
+      credentials: 'include',
     });
-
     await loadBanners();
   };
 
@@ -257,20 +258,17 @@ export default function AdminDashboardPage() {
 
     await fetch('/api/admin/capabilities/reorder', {
       method: 'POST',
-      headers: {
-        ...authHeaders,
-        'Content-Type': 'application/json',
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ids: next.map((item) => item.id) }),
+      credentials: 'include',
     });
-
     await loadCapabilities();
   };
 
   const removeBanner = async (id: string) => {
     await fetch(`/api/admin/banners/${id}`, {
       method: 'DELETE',
-      headers: authHeaders,
+      credentials: 'include',
     });
     await loadBanners();
     await loadDashboard();
@@ -279,7 +277,7 @@ export default function AdminDashboardPage() {
   const removeCapability = async (id: string) => {
     await fetch(`/api/admin/capabilities/${id}`, {
       method: 'DELETE',
-      headers: authHeaders,
+      credentials: 'include',
     });
     await loadCapabilities();
     await loadDashboard();
@@ -288,9 +286,8 @@ export default function AdminDashboardPage() {
   const approveSupplier = async (id: string) => {
     await fetch(`/api/admin/suppliers/${id}/approve`, {
       method: 'POST',
-      headers: authHeaders,
+      credentials: 'include',
     });
-
     await loadPendingSuppliers();
     await loadDashboard();
   };
@@ -314,34 +311,52 @@ export default function AdminDashboardPage() {
     reader.readAsDataURL(file);
   };
 
+  // ── Loading/Auth guard renders ──
+  if (authLoading) {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
+      </div>
+    );
+  }
+
+  if (!isAuthenticated || !isAdmin) {
+    return (
+      <div className="flex min-h-[60vh] flex-col items-center justify-center p-6 text-center">
+        <AlertTriangle className="mb-4 h-12 w-12 text-amber-500" />
+        <h1 className="text-xl font-bold text-slate-900">Access Restricted</h1>
+        <p className="mt-2 text-sm text-slate-500">
+          This area is restricted to authorized administrators only.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="container py-8">
+      {/* ── Header with Security Badge ── */}
       <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
         <div>
+          <div className="mb-2 flex items-center gap-2">
+            <Shield className="h-5 w-5 text-blue-600" />
+            <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-emerald-700 text-xs font-bold">
+              <ShieldCheck className="mr-1 h-3 w-3" /> 2FA Verified
+            </Badge>
+          </div>
           <h1 className="text-4xl font-bold">Admin Marketplace Control</h1>
-          <p className="mt-2 text-muted-foreground">Manage hero banners, capabilities, and supplier approvals.</p>
+          <p className="mt-2 text-muted-foreground">
+            Manage hero banners, capabilities, and supplier approvals.
+            {profile?.email && (
+              <span className="ml-2 text-xs font-semibold text-slate-400">
+                Signed in as {profile.email}
+              </span>
+            )}
+          </p>
         </div>
-        <Button variant="outline" onClick={loadAll} disabled={!token || loading}>
+        <Button variant="outline" onClick={loadAll} disabled={loading}>
           <RefreshCw className="mr-2 h-4 w-4" /> Refresh
         </Button>
       </div>
-
-      <Card className="mb-8">
-        <CardHeader>
-          <CardTitle>Admin Access Token</CardTitle>
-          <CardDescription>
-            Paste a valid admin JWT to manage marketplace content and approvals.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Input
-            type="password"
-            placeholder="Bearer token"
-            value={token}
-            onChange={(event) => setToken(event.target.value.trim())}
-          />
-        </CardContent>
-      </Card>
 
       {error ? (
         <div className="mb-6 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</div>
@@ -412,7 +427,7 @@ export default function AdminDashboardPage() {
                 <Input value={bannerForm.ctaLink} onChange={(e) => setBannerForm((p) => ({ ...p, ctaLink: e.target.value }))} />
               </div>
               <div className="md:col-span-2">
-                <Button onClick={createBanner} disabled={!token}>Create Banner</Button>
+                <Button onClick={createBanner}>Create Banner</Button>
               </div>
             </CardContent>
           </Card>
@@ -493,7 +508,7 @@ export default function AdminDashboardPage() {
                 <Input value={capabilityForm.heroImageUrl} onChange={(e) => setCapabilityForm((p) => ({ ...p, heroImageUrl: e.target.value }))} />
               </div>
               <div className="md:col-span-2">
-                <Button onClick={createCapability} disabled={!token}>Create Capability</Button>
+                <Button onClick={createCapability}>Create Capability</Button>
               </div>
             </CardContent>
           </Card>
@@ -557,7 +572,7 @@ export default function AdminDashboardPage() {
                     <p className="mt-1 line-clamp-2 text-sm text-slate-500">{supplier.description}</p>
                     <p className="mt-2 text-xs text-slate-400">Submitted {formatDate(supplier.createdAt)}</p>
                   </div>
-                  <Button onClick={() => approveSupplier(supplier.id)} disabled={!token}>
+                  <Button onClick={() => approveSupplier(supplier.id)}>
                     <CheckCircle2 className="mr-2 h-4 w-4" /> Approve
                   </Button>
                 </div>
@@ -569,5 +584,3 @@ export default function AdminDashboardPage() {
     </div>
   );
 }
-
-

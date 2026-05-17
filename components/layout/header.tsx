@@ -36,6 +36,10 @@ function getInitials(name?: string | null, email?: string | null) {
 // ─── Menu Key Type ───
 type MenuKey = 'capabilities' | 'industries' | 'products' | null;
 
+// ─── Hover intent timing ───
+const CLOSE_DELAY_MS = 300;
+const OPEN_DELAY_MS = 0; // instant open
+
 // ═══════════════════════════════════════════════════════
 // FULL-WIDTH MEGA MENU PANEL
 // ═══════════════════════════════════════════════════════
@@ -153,7 +157,7 @@ export function Header() {
   const [activeMenu, setActiveMenu] = useState<MenuKey>(null);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const navRef = useRef<HTMLDivElement>(null);
+  const headerRef = useRef<HTMLElement>(null);
 
   const { data: taxonomy, loading: taxLoading } = useTaxonomyRegistry();
   const {
@@ -165,22 +169,53 @@ export function Header() {
 
   useEffect(() => { setMobileOpen(false); setActiveMenu(null); }, [pathname]);
 
-  // ── Hover intent system ──
-  const openMenu = useCallback((key: MenuKey) => {
-    if (closeTimerRef.current) { clearTimeout(closeTimerRef.current); closeTimerRef.current = null; }
-    setActiveMenu(key);
+  // ── Enterprise hover intent system ──
+  const clearCloseTimer = useCallback(() => {
+    if (closeTimerRef.current) {
+      clearTimeout(closeTimerRef.current);
+      closeTimerRef.current = null;
+    }
   }, []);
+
+  const openMenu = useCallback((key: MenuKey) => {
+    clearCloseTimer();
+    setActiveMenu(key);
+  }, [clearCloseTimer]);
 
   const scheduleClose = useCallback(() => {
-    if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
-    closeTimerRef.current = setTimeout(() => { setActiveMenu(null); }, 200);
-  }, []);
+    clearCloseTimer();
+    closeTimerRef.current = setTimeout(() => {
+      setActiveMenu(null);
+    }, CLOSE_DELAY_MS);
+  }, [clearCloseTimer]);
 
-  const cancelClose = useCallback(() => {
-    if (closeTimerRef.current) { clearTimeout(closeTimerRef.current); closeTimerRef.current = null; }
-  }, []);
+  const closeMenu = useCallback(() => {
+    clearCloseTimer();
+    setActiveMenu(null);
+  }, [clearCloseTimer]);
 
-  const closeMenu = useCallback(() => { setActiveMenu(null); }, []);
+  // ── Keyboard support: ESC to close ──
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && activeMenu) {
+        closeMenu();
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [activeMenu, closeMenu]);
+
+  // ── Click outside to close ──
+  useEffect(() => {
+    if (!activeMenu) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (headerRef.current && !headerRef.current.contains(e.target as Node)) {
+        closeMenu();
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [activeMenu, closeMenu]);
 
   // Cleanup timer on unmount
   useEffect(() => () => { if (closeTimerRef.current) clearTimeout(closeTimerRef.current); }, []);
@@ -196,12 +231,23 @@ export function Header() {
     products: { label: 'Products', items: categories, prefix: '/marketplace?category=' },
   };
 
+  const isMenuOpen = activeMenu !== null;
+
   return (
     <>
+      {/* 
+        ════════════════════════════════════════════════════════════
+        HEADER — Sticky, isolated stacking context
+        The entire header (navbar + mega panel) shares one hover container.
+        Mouse-leaving the header schedules close; entering cancels it.
+        ════════════════════════════════════════════════════════════ 
+      */}
       <header
-        ref={navRef}
+        ref={headerRef}
         className="sticky top-0 z-50 w-full bg-white"
         onMouseLeave={scheduleClose}
+        onMouseEnter={clearCloseTimer}
+        role="banner"
       >
         {/* ── Primary Nav Bar ── */}
         <div className="border-b border-slate-200 shadow-sm">
@@ -212,7 +258,7 @@ export function Header() {
             </Link>
 
             {/* Center Nav */}
-            <nav className="hidden items-center lg:flex">
+            <nav className="hidden items-center lg:flex" role="navigation" aria-label="Main navigation">
               <Link
                 href="/"
                 className={cn(
@@ -235,12 +281,16 @@ export function Header() {
                       : 'text-slate-600 hover:text-slate-900',
                   )}
                   onMouseEnter={() => openMenu(key)}
+                  onFocus={() => openMenu(key)}
                   onClick={() => setActiveMenu(activeMenu === key ? null : key)}
+                  aria-expanded={activeMenu === key}
+                  aria-haspopup="true"
+                  aria-controls={`mega-panel-${key}`}
                 >
                   {MENUS[key].label}
                   <ChevronDown
                     className={cn(
-                      'h-3.5 w-3.5 transition-transform duration-150',
+                      'h-3.5 w-3.5 transition-transform duration-200',
                       activeMenu === key && 'rotate-180',
                     )}
                   />
@@ -354,35 +404,70 @@ export function Header() {
           </div>
         </div>
 
-        {/* ════════════════════════════════════════════════
-            FULL-WIDTH MEGA MENU BAND
-            z-[60] ensures it renders ABOVE any overlay and portaled dropdowns
-            ════════════════════════════════════════════════ */}
-        {activeMenu && (
+        {/* ════════════════════════════════════════════════════════
+            INVISIBLE BRIDGE ZONE
+            This invisible div spans the gap between the navbar bottom
+            and the mega panel top, preventing hover disconnect.
+            Without this, diagonal mouse movement from trigger to panel
+            crosses a "dead zone" that triggers onMouseLeave.
+            ════════════════════════════════════════════════════════ */}
+        <div
+          className={cn(
+            'absolute left-0 right-0 h-2 z-[59]',
+            isMenuOpen ? 'pointer-events-auto' : 'pointer-events-none',
+          )}
+          style={{ top: '100%' }}
+          onMouseEnter={clearCloseTimer}
+          aria-hidden="true"
+        />
+
+        {/* ════════════════════════════════════════════════════════
+            FULL-WIDTH MEGA MENU BAND — ALWAYS MOUNTED
+            Uses opacity/visibility/pointer-events for transitions
+            instead of conditional rendering. This eliminates:
+            - Mount/unmount flicker
+            - Layout shift
+            - Animation race conditions
+            z-[60] ensures it renders ABOVE any overlay
+            ════════════════════════════════════════════════════════ */}
+        {(Object.keys(MENUS) as Exclude<MenuKey, null>[]).map((key) => (
           <div
-            className="absolute left-0 right-0 z-[60] border-b border-slate-200 bg-white shadow-[0_8px_30px_rgba(0,0,0,0.08)]"
+            key={key}
+            id={`mega-panel-${key}`}
+            role="region"
+            aria-label={`${MENUS[key].label} menu`}
+            className={cn(
+              'absolute left-0 right-0 z-[60] border-b border-slate-200 bg-white shadow-[0_8px_30px_rgba(0,0,0,0.08)]',
+              'transition-[opacity,visibility] duration-200 ease-out',
+              activeMenu === key
+                ? 'visible opacity-100 pointer-events-auto'
+                : 'invisible opacity-0 pointer-events-none',
+            )}
             style={{ top: '100%' }}
-            onMouseEnter={cancelClose}
+            onMouseEnter={clearCloseTimer}
             onMouseLeave={scheduleClose}
           >
             <MegaPanel
-              items={MENUS[activeMenu].items}
+              items={MENUS[key].items}
               loading={taxLoading}
-              hrefPrefix={MENUS[activeMenu].prefix}
+              hrefPrefix={MENUS[key].prefix}
               onClose={closeMenu}
             />
           </div>
-        )}
+        ))}
       </header>
 
       {/* Backdrop overlay — click to dismiss mega menu */}
-      {activeMenu && (
-        <div
-          className="fixed inset-0 z-[55] bg-black/5"
-          onClick={closeMenu}
-          aria-hidden="true"
-        />
-      )}
+      <div
+        className={cn(
+          'fixed inset-0 z-[49] transition-opacity duration-200',
+          isMenuOpen
+            ? 'bg-black/5 opacity-100 pointer-events-auto'
+            : 'opacity-0 pointer-events-none',
+        )}
+        onClick={closeMenu}
+        aria-hidden="true"
+      />
 
       {/* ── Mobile Menu ── */}
       {mobileOpen && (
