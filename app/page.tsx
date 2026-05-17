@@ -6,46 +6,88 @@ import { formatCurrency } from '@/lib/utils';
 import HeroCarousel from '@/components/home/HeroCarousel';
 import CapabilitiesGrid from '@/components/home/CapabilitiesGrid';
 import { getCapabilities, getHeroBanners } from '@/lib/server/content';
+import { createSupabaseServerClient } from '@/lib/supabase/server-client';
 
 export const dynamic = 'force-dynamic';
 
-const featuredListings = [
+// Fallback listings used ONLY when DB is empty
+const fallbackListings = [
   {
-    id: '1',
-    title: 'SS 304 Flanges — ASTM A182, DN50–DN600',
-    metalType: 'Stainless Steel',
-    price: 42500,
-    location: 'Ahmedabad, Gujarat',
+    id: '1', title: 'SS 304 Flanges — ASTM A182, DN50–DN600', slug: 'ss-304-flanges',
+    metalType: 'Stainless Steel', price: 42500, location: 'Ahmedabad, Gujarat',
     seller: { verified: true, premium: true, name: 'Apex Alloy Industries', certifications: ['ISO 9001', 'PED'] },
   },
   {
-    id: '2',
-    title: 'Forged Crankshafts — EN8/EN19, up to 500 kg',
-    metalType: 'Alloy Steel',
-    price: 185000,
-    location: 'Pune, Maharashtra',
+    id: '2', title: 'Forged Crankshafts — EN8/EN19, up to 500 kg', slug: 'forged-crankshafts',
+    metalType: 'Alloy Steel', price: 185000, location: 'Pune, Maharashtra',
     seller: { verified: true, premium: true, name: 'TitanForge Engineering', certifications: ['ISO 9001', 'IATF 16949'] },
   },
   {
-    id: '3',
-    title: 'Aluminium Die Cast Housings — ADC12/A380',
-    metalType: 'Aluminium',
-    price: 78000,
-    location: 'Rajkot, Gujarat',
+    id: '3', title: 'Aluminium Die Cast Housings — ADC12/A380', slug: 'aluminium-die-cast-housings',
+    metalType: 'Aluminium', price: 78000, location: 'Rajkot, Gujarat',
     seller: { verified: true, premium: false, name: 'SteelCraft Manufacturing', certifications: ['ISO 9001'] },
   },
   {
-    id: '4',
-    title: 'CNC Machined Valve Bodies — SS 316L, ±0.01mm',
-    metalType: 'Stainless Steel',
-    price: 125000,
-    location: 'Coimbatore, Tamil Nadu',
+    id: '4', title: 'CNC Machined Valve Bodies — SS 316L, ±0.01mm', slug: 'cnc-machined-valve-bodies',
+    metalType: 'Stainless Steel', price: 125000, location: 'Coimbatore, Tamil Nadu',
     seller: { verified: true, premium: true, name: 'Vertex Precision Metals', certifications: ['ISO 9001', 'AS9100D'] },
   },
 ];
 
+async function getFeaturedListings() {
+  try {
+    const supabase = createSupabaseServerClient();
+    if (!supabase) return fallbackListings;
+
+    const { data, error } = await supabase
+      .from('listings')
+      .select('id, title, slug, metal_type, price_min, is_featured, is_active, company_id')
+      .eq('is_active', true)
+      .is('deleted_at', null)
+      .order('is_featured', { ascending: false })
+      .order('created_at', { ascending: false })
+      .limit(4);
+
+    if (error || !data || data.length === 0) return fallbackListings;
+
+    return data.map((l: any) => ({
+      id: l.id,
+      title: l.title || 'Untitled Listing',
+      slug: l.slug || l.id,
+      metalType: l.metal_type || 'Metal',
+      price: l.price_min || 0,
+      location: '',
+      seller: { verified: true, premium: l.is_featured, name: '', certifications: [] },
+    }));
+  } catch {
+    return fallbackListings;
+  }
+}
+
+async function getLiveStats() {
+  try {
+    const supabase = createSupabaseServerClient();
+    if (!supabase) return { suppliers: 0, listings: 0, rfqs: 0 };
+
+    const [s, l, r] = await Promise.all([
+      supabase.from('companies').select('id', { count: 'exact', head: true }).eq('verification_status', 'approved').is('deleted_at', null),
+      supabase.from('listings').select('id', { count: 'exact', head: true }).eq('is_active', true).is('deleted_at', null),
+      supabase.from('rfqs').select('id', { count: 'exact', head: true }).eq('status', 'open').is('deleted_at', null),
+    ]);
+
+    return { suppliers: s.count || 0, listings: l.count || 0, rfqs: r.count || 0 };
+  } catch {
+    return { suppliers: 0, listings: 0, rfqs: 0 };
+  }
+}
+
 export default async function HomePage() {
-  const [banners, capabilities] = await Promise.all([getHeroBanners(), getCapabilities()]);
+  const [banners, capabilities, featuredListings, stats] = await Promise.all([
+    getHeroBanners(),
+    getCapabilities(),
+    getFeaturedListings(),
+    getLiveStats(),
+  ]);
 
   return (
     <div className="flex flex-col">
@@ -62,10 +104,10 @@ export default async function HomePage() {
         </div>
 
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-          {featuredListings.map((listing) => (
+          {featuredListings.map((listing: any) => (
             <Link
               key={listing.id}
-              href={`/marketplace?type=suppliers&search=${encodeURIComponent(listing.title)}` }
+              href={`/marketplace/listings/${listing.slug || listing.id}`}
               className="group relative flex h-full flex-col overflow-hidden rounded-2xl border border-border/60 bg-gradient-to-br from-white to-slate-50 transition-all duration-300 hover:-translate-y-2 hover:shadow-[0_20px_40px_rgba(0,0,0,0.12)]"
             >
               <div className="relative aspect-[4/3] w-full bg-slate-200">
@@ -76,12 +118,12 @@ export default async function HomePage() {
                     {listing.metalType}
                   </Badge>
                   <div className="flex flex-col items-end gap-2">
-                    {listing.seller.premium ? (
+                    {listing.seller?.premium ? (
                       <div className="rounded bg-gradient-to-r from-yellow-500 to-amber-500 px-2 py-1 text-xs font-bold text-white">
                         Premium
                       </div>
                     ) : null}
-                    {listing.seller.verified ? (
+                    {listing.seller?.verified ? (
                       <div className="flex items-center gap-1 rounded bg-emerald-500/90 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-white">
                         <CheckCircle className="h-3 w-3" /> VERIFIED
                       </div>
@@ -94,16 +136,20 @@ export default async function HomePage() {
                 <h3 className="mb-2 line-clamp-2 text-lg font-bold group-hover:text-primary">{listing.title}</h3>
 
                 <div className="mt-auto pt-2">
-                  <div className="mb-3 flex items-baseline gap-1 text-xl font-bold text-foreground">
-                    {formatCurrency(listing.price)}
-                    <span className="text-sm font-medium text-muted-foreground">/ MT</span>
-                  </div>
+                  {listing.price > 0 && (
+                    <div className="mb-3 flex items-baseline gap-1 text-xl font-bold text-foreground">
+                      {formatCurrency(listing.price)}
+                      <span className="text-sm font-medium text-muted-foreground">/ MT</span>
+                    </div>
+                  )}
 
                   <div className="flex items-center justify-between border-t border-border/50 pt-4 text-sm text-muted-foreground">
-                    <span className="flex max-w-[150px] items-center gap-1.5 truncate">
-                      <MapPin className="h-4 w-4 shrink-0" />
-                      <span className="truncate">{listing.location}</span>
-                    </span>
+                    {listing.location && (
+                      <span className="flex max-w-[150px] items-center gap-1.5 truncate">
+                        <MapPin className="h-4 w-4 shrink-0" />
+                        <span className="truncate">{listing.location}</span>
+                      </span>
+                    )}
                     <span className="text-xs font-semibold text-primary">View Details</span>
                   </div>
                 </div>
@@ -164,4 +210,3 @@ export default async function HomePage() {
     </div>
   );
 }
-

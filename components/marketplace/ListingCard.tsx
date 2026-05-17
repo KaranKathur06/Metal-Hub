@@ -85,7 +85,7 @@ export default function ListingCard({
             <div className="mb-3 flex items-start justify-between gap-3">
               <div className="flex-1">
                 <h3 className="line-clamp-2 text-[17px] font-bold leading-snug text-slate-900 transition-colors group-hover:text-blue-700">
-                  {inquiry.productName}
+                  {inquiry.productName || (inquiry as any).title || 'Untitled Requirement'}
                 </h3>
               </div>
               <div className={`flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider ${urg.bg} ${urg.text}`}>
@@ -98,9 +98,11 @@ export default function ListingCard({
 
             {/* Tags */}
             <div className="mt-3 flex flex-wrap gap-1.5">
-              <span className="rounded-md bg-slate-100 px-2 py-0.5 text-xs font-semibold capitalize text-slate-700">
-                {inquiry.category.replace('-', ' ')}
-              </span>
+              {(inquiry.category || (inquiry as any).metal_type) ? (
+                <span className="rounded-md bg-slate-100 px-2 py-0.5 text-xs font-semibold capitalize text-slate-700">
+                  {(inquiry.category || (inquiry as any).metal_type || '').replace(/-/g, ' ')}
+                </span>
+              ) : null}
               {inquiry.industry?.name ? (
                 <span className="rounded-md border border-slate-200 px-2 py-0.5 text-xs font-medium text-slate-600">
                   {inquiry.industry.name}
@@ -116,10 +118,10 @@ export default function ListingCard({
             {/* Grid metadata */}
             <div className="mt-4 grid grid-cols-2 gap-2 text-[13px]">
               <p className="flex items-center gap-1.5 text-slate-600">
-                <Package className="h-3.5 w-3.5 text-slate-400" /> {inquiry.quantity}
+                <Package className="h-3.5 w-3.5 text-slate-400" /> {inquiry.quantity || 'Contact for qty'}
               </p>
               <p className="flex items-center gap-1.5 text-slate-600">
-                <MapPin className="h-3.5 w-3.5 text-slate-400" /> {inquiry.location}
+                <MapPin className="h-3.5 w-3.5 text-slate-400" /> {inquiry.location || 'India'}
               </p>
             </div>
 
@@ -129,7 +131,7 @@ export default function ListingCard({
                 <div>
                   <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Budget</p>
                   <p className="mt-0.5 font-bold text-slate-900">
-                    {inquiry.budgetRange || (typeof inquiry.budget === 'number' ? formatCurrency(inquiry.budget) : 'Open')}
+                    {inquiry.budgetRange || (inquiry as any).target_price || (typeof inquiry.budget === 'number' ? formatCurrency(inquiry.budget) : 'Open')}
                   </p>
                 </div>
                 <div>
@@ -144,7 +146,7 @@ export default function ListingCard({
               <div className="flex items-center gap-3 text-xs text-slate-400">
                 <span className="flex items-center gap-1"><TrendingUp className="h-3 w-3" /> {inquiry.viewsCount || 0} views</span>
                 <span className="flex items-center gap-1"><Zap className="h-3 w-3" /> {inquiry.quoteCount || 0} quotes</span>
-                <span className="flex items-center gap-1"><Clock3 className="h-3 w-3" /> {formatDate(inquiry.createdAt)}</span>
+                <span className="flex items-center gap-1"><Clock3 className="h-3 w-3" /> {formatDate(inquiry.createdAt || (inquiry as any).created_at)}</span>
               </div>
               <div className="flex items-center gap-1 text-sm font-bold text-blue-600 transition-colors group-hover:text-blue-700">
                 Quote <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1" />

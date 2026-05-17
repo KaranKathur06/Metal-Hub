@@ -61,6 +61,7 @@ export default function MarketplaceTabs() {
   const [response, setResponse] = useState<MarketplaceResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [liveStats, setLiveStats] = useState({ verifiedSuppliers: 0, activeListings: 0, activeRfqs: 0, totalProducts: 0 });
 
   const activeType = searchParams.get('type') === 'suppliers' ? 'suppliers' : 'buyers';
   const page = Number(searchParams.get('page') || '1');
@@ -166,6 +167,14 @@ export default function MarketplaceTabs() {
     loadCapabilities();
   }, []);
 
+  // Load live platform stats from DB
+  useEffect(() => {
+    fetch('/api/marketplace/stats', { cache: 'no-store' })
+      .then(r => r.json())
+      .then(data => setLiveStats(data))
+      .catch(() => {});
+  }, []);
+
   // Load industries from taxonomy DB
   useEffect(() => {
     const supabase = getSupabaseBrowserClient();
@@ -246,12 +255,12 @@ export default function MarketplaceTabs() {
               </div>
               <div className="h-8 w-px bg-slate-700" />
               <div className="text-center">
-                <p className="text-2xl font-bold text-emerald-400">50+</p>
+                <p className="text-2xl font-bold text-emerald-400">{liveStats.verifiedSuppliers || '—'}</p>
                 <p className="text-xs text-slate-400">Verified</p>
               </div>
               <div className="h-8 w-px bg-slate-700" />
               <div className="text-center">
-                <p className="text-2xl font-bold text-blue-400">200+</p>
+                <p className="text-2xl font-bold text-blue-400">{liveStats.totalProducts || '—'}</p>
                 <p className="text-xs text-slate-400">Products</p>
               </div>
             </div>
