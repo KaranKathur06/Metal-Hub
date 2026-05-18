@@ -34,8 +34,9 @@ function LoginForm() {
   const getRedirectPath = (role?: string) => {
     const redirectParam = searchParams.get("redirect")
     if (redirectParam) return redirectParam
-    if (role === "seller" || role === "both") return "/seller/dashboard"
-    if (role === "admin") return "/admin"
+    if (role === "seller" || role === "both" || role === "manufacturer" || role === "distributor") return "/seller/dashboard"
+    if (role === "super_admin" || role === "admin") return "/admin"
+    if (role === "moderator" || role === "support_agent" || role === "supplier_success") return "/ops"
     return "/marketplace"
   }
 
@@ -56,8 +57,10 @@ function LoginForm() {
       }
       if (data.session) {
         // Refresh the identity context so the navbar updates immediately
+        // This also fetches the DB profile which has the authoritative role
         await refreshIdentity()
-        const role = data.user?.user_metadata?.role || "buyer"
+        // Read role from app_metadata first (set by us), then user_metadata, then fallback
+        const role = data.user?.app_metadata?.role || data.user?.user_metadata?.role || "buyer"
         router.push(getRedirectPath(role))
         router.refresh()
       }

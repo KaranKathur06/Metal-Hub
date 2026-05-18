@@ -2,39 +2,37 @@ const pg = require('pg');
 (async () => {
   const c = new pg.Client({ connectionString: 'postgresql://postgres:Supabase%402323@db.lrfvfvxfjpowskzqebar.supabase.co:5432/postgres', ssl: { rejectUnauthorized: false } });
   await c.connect();
+
+  const userId = '5be78de3-d6f7-470d-a8ee-430ba8ca69da';
+  const email = 'kathurkaran077@gmail.com';
+
+  // Check if profile already exists
+  const { rows: existing } = await c.query('SELECT id, role FROM profiles WHERE id = $1', [userId]);
   
-  // All policies with FOR ALL that reference profiles cause recursion for anon SELECT.
-  // Fix: Replace FOR ALL with separate INSERT/UPDATE/DELETE policies using auth.uid() IS NOT NULL.
-  const fixPolicies = [
-    ['banners', 'banners_admin_write'],
-    ['lead_activities', 'lead_activities_admin_access'],
-    ['leads', 'leads_admin_access'],
-    ['listing_media', 'listing_media_owner_write'],
-    ['listing_pricing_tiers', 'listing_pricing_write'],
-    ['listing_specifications', 'listing_specs_write'],
-  ];
-  
-  for (const [table, policy] of fixPolicies) {
-    try {
-      await c.query(`DROP POLICY IF EXISTS "${policy}" ON public.${table}`);
-      // Replace with simple auth check for write operations
-      await c.query(`CREATE POLICY "${policy}_insert" ON public.${table} FOR INSERT WITH CHECK (auth.uid() IS NOT NULL)`);
-      await c.query(`CREATE POLICY "${policy}_update" ON public.${table} FOR UPDATE USING (auth.uid() IS NOT NULL)`);
-      await c.query(`CREATE POLICY "${policy}_delete" ON public.${table} FOR DELETE USING (auth.uid() IS NOT NULL)`);
-      console.log(`Fixed: ${table}.${policy}`);
-    } catch (e) {
-      console.log(`Skip ${table}.${policy}: ${e.message}`);
-    }
+  if (existing.length > 0) {
+    // Update existing
+    await c.query('UPDATE profiles SET role = $1 WHERE id = $2', ['super_admin', userId]);
+    console.log('✅ Updated existing profile to super_admin');
+  } else {
+    // Check table structure
+    const { rows: cols } = await c.query(`SELECT column_name FROM information_schema.columns WHERE table_name = 'profiles' AND table_schema = 'public' ORDER BY ordinal_position`);
+    console.log('Profile columns:', cols.map(c => c.column_name).join(', '));
+    
+    // Insert with user_id + timestamps
+    await c.query(`
+      INSERT INTO profiles (id, user_id, email, role, full_name, created_at, updated_at) 
+      VALUES ($1, $1, $2, 'super_admin', 'Karan Kathur', NOW(), NOW())
+      ON CONFLICT (id) DO UPDATE SET role = 'super_admin', updated_at = NOW()
+    `, [userId, email]);
+    console.log('✅ Profile created with super_admin');
   }
-  
-  // Verify anon can now read without recursion
-  await c.query("SET ROLE anon");
-  try {
-    const r = await c.query("SELECT count(*) FROM public.listings WHERE is_active = true");
-    console.log('Anon listings:', r.rows[0].count);
-  } catch (e) { console.log('Error:', e.message); }
-  await c.query("RESET ROLE");
-  
+
+  // Verify final state
+  const { rows: verify } = await c.query(`
+    SELECT p.role as db_role, au.raw_user_meta_data->>'role' as meta_role, au.raw_app_meta_data->>'role' as app_role
+    FROM auth.users au LEFT JOIN profiles p ON p.id = au.id WHERE au.id = $1
+  `, [userId]);
+  console.log('Final state:', verify[0]);
+
   await c.end();
-  console.log('Done.');
 })();

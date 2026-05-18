@@ -57,6 +57,7 @@ export default function MarketplaceTabs() {
 
   const [capabilities, setCapabilities] = useState<CapabilityOption[]>([]);
   const [industryOptions, setIndustryOptions] = useState<Array<{ label: string; value: string }>>([]);
+  const [materialOptions, setMaterialOptions] = useState<Array<{ label: string; value: string }>>([]);
   const [locationOptions, setLocationOptions] = useState<Array<{ label: string; value: string }>>([]);
   const [response, setResponse] = useState<MarketplaceResponse | null>(null);
   const [loading, setLoading] = useState(false);
@@ -207,6 +208,22 @@ export default function MarketplaceTabs() {
       });
   }, []);
 
+  // Load materials from taxonomy DB
+  useEffect(() => {
+    const supabase = getSupabaseBrowserClient();
+    if (!supabase) return;
+    supabase
+      .from('taxonomy')
+      .select('name,slug')
+      .eq('type', 'material')
+      .eq('is_active', true)
+      .is('deleted_at', null)
+      .order('sort_order', { ascending: true })
+      .then(({ data }) => {
+        if (data) setMaterialOptions(data.map((d: any) => ({ label: d.name, value: d.slug })));
+      });
+  }, []);
+
   useEffect(() => {
     if (debounceRef.current) window.clearTimeout(debounceRef.current);
     debounceRef.current = window.setTimeout(() => { fetchData(); }, 280);
@@ -314,6 +331,7 @@ export default function MarketplaceTabs() {
                 onChange={(next) => updateParams({ capability: next.join(',') })}
               />
               <FilterDropdown label="Industry" options={industryOptions} value={industries} onChange={(next) => updateParams({ industry: next.join(',') })} />
+              <FilterDropdown label="Material" options={materialOptions} value={categories} onChange={(next) => updateParams({ category: next.join(',') })} />
               <FilterDropdown label="Verified" options={VERIFIED_OPTIONS} value={verified} multiple={false} onChange={(next) => updateParams({ verified: next.length > 0 ? 'true' : '' })} />
               {activeType === 'suppliers' ? (
                 <FilterDropdown label="MOQ" options={MOQ_OPTIONS} value={moqRange} multiple={false} onChange={(next) => updateParams({ moqRange: next[0] || '' })} />

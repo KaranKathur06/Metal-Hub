@@ -159,40 +159,52 @@ export default function ListingCard({
   }
 
   // ============ SUPPLIER CARD ============
-  const supplier = item as SupplierListing;
-  const primaryProduct = supplier.products?.[0];
-  const ratingColor = Number(supplier.rating) >= 4.5 ? 'text-emerald-600' : Number(supplier.rating) >= 4.0 ? 'text-amber-600' : 'text-slate-600';
+  // API returns listing with nested companies{} from join
+  const listing = item as any;
+  const co = listing.companies || {};
+  const companyName = co.name || listing.companyName || 'Supplier';
+  const isVerified = co.verification_status === 'approved' || listing.isVerified;
+  const description = co.description || listing.description || '';
+  const responseRate = co.response_rate || 0;
+  const completionRate = co.completion_rate || 0;
+  const avgResponseHrs = co.avg_response_hours || 0;
+  const isoCertified = co.iso_certified || false;
+  const exportCapable = co.export_capability || false;
+  const estYear = co.established_year || 0;
+  const employees = co.employee_count || 0;
+  const yearsInBiz = estYear ? new Date().getFullYear() - estYear : 0;
+
+  // Format price display
+  const priceDisplay = listing.price_min
+    ? `₹${Number(listing.price_min).toLocaleString('en-IN')}${listing.price_max ? ` – ₹${Number(listing.price_max).toLocaleString('en-IN')}` : '+'}`
+    : 'On request';
 
   return (
-    <Link href={`/marketplace/supplier/${supplier.id}`} className="block">
+    <Link href={`/marketplace/listings/${listing.slug || listing.id}`} className="block">
       <article className="group relative h-full overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_1px_3px_rgba(15,23,42,0.04)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_20px_40px_rgba(15,23,42,0.1)]">
         {/* Hover gradient overlay */}
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-blue-600/[0.03] via-transparent to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
 
         {/* Verified accent bar */}
-        {supplier.isVerified ? (
+        {isVerified ? (
           <div className="h-1 w-full bg-gradient-to-r from-emerald-500 via-emerald-400 to-teal-400" />
         ) : (
           <div className="h-1 w-full bg-slate-200" />
         )}
 
         <div className="relative z-10 p-5">
-          {/* Header row */}
+          {/* Company header */}
           <div className="mb-2 flex items-start justify-between gap-3">
             <div className="flex-1">
-              <div className="flex items-center gap-2">
-                <h3 className="line-clamp-1 text-[17px] font-bold text-slate-900 transition-colors group-hover:text-blue-700">
-                  {supplier.companyName}
-                </h3>
-              </div>
+              <h3 className="line-clamp-1 text-[17px] font-bold text-slate-900 transition-colors group-hover:text-blue-700">
+                {companyName}
+              </h3>
               <p className="mt-0.5 line-clamp-1 text-sm text-slate-500">
-                {supplier.tagline || 'Industrial manufacturing partner'}
+                {listing.title}
               </p>
             </div>
-
-            {/* Badges column */}
             <div className="flex shrink-0 flex-col items-end gap-1.5">
-              {supplier.isVerified ? (
+              {isVerified ? (
                 <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider text-emerald-700 ring-1 ring-emerald-200/60">
                   <ShieldCheck className="h-3 w-3" /> Verified
                 </span>
@@ -201,79 +213,71 @@ export default function ListingCard({
                   Unverified
                 </span>
               )}
-              <span className={`inline-flex items-center gap-1 text-sm font-bold ${ratingColor}`}>
-                <Star className="h-3.5 w-3.5 fill-current" />
-                {Number(supplier.rating || 0).toFixed(1)}
-              </span>
             </div>
           </div>
 
-          {/* Metadata grid */}
+          {/* Description */}
+          <p className="line-clamp-2 text-[13px] leading-relaxed text-slate-500">{description}</p>
+
+          {/* Performance metrics */}
           <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1.5 text-[13px]">
-            <p className="flex items-center gap-1.5 text-slate-600">
-              <MapPin className="h-3.5 w-3.5 text-slate-400" /> {supplier.location}
-            </p>
-            <p className="flex items-center gap-1.5 text-slate-600">
-              <Gauge className="h-3.5 w-3.5 text-slate-400" /> {supplier.responseTimeMinutes || 120}m response
-            </p>
-            <p className="flex items-center gap-1.5 text-slate-600">
-              <Factory className="h-3.5 w-3.5 text-slate-400" /> {Math.round(supplier.completionRate || 0)}% completion
-            </p>
-            <p className="flex items-center gap-1.5 text-slate-600">
-              <Globe2 className="h-3.5 w-3.5 text-slate-400" /> {supplier.exportReady ? 'Export Ready' : 'Domestic'}
-            </p>
+            {avgResponseHrs > 0 && (
+              <p className="flex items-center gap-1.5 text-slate-600">
+                <Gauge className="h-3.5 w-3.5 text-blue-500" /> {avgResponseHrs}h response
+              </p>
+            )}
+            {completionRate > 0 && (
+              <p className="flex items-center gap-1.5 text-slate-600">
+                <Factory className="h-3.5 w-3.5 text-emerald-500" /> {completionRate}% completion
+              </p>
+            )}
+            {yearsInBiz > 0 && (
+              <p className="flex items-center gap-1.5 text-slate-600">
+                <TrendingUp className="h-3.5 w-3.5 text-amber-500" /> {yearsInBiz} yrs experience
+              </p>
+            )}
+            {employees > 0 && (
+              <p className="flex items-center gap-1.5 text-slate-600">
+                <Package className="h-3.5 w-3.5 text-slate-400" /> {employees} employees
+              </p>
+            )}
           </div>
 
-          {/* Capability & Industry chips */}
-          <div className="mt-3 flex flex-wrap gap-1.5">
-            {(supplier.capabilities || []).slice(0, 3).map((cap: any) => (
-              <span key={cap.id || cap.slug || cap.name} className="rounded-full border border-blue-100 bg-blue-50 px-2.5 py-0.5 text-[11px] font-semibold text-blue-700">
-                {cap.name || cap.slug}
-              </span>
-            ))}
-            {(supplier.industries || []).slice(0, 2).map((industry: any) => (
-              <span key={industry.id || industry.slug || industry.name} className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-0.5 text-[11px] font-medium text-slate-600">
-                {industry.name || industry.slug}
-              </span>
-            ))}
-          </div>
-
-          {/* Featured Product */}
+          {/* Featured Listing info */}
           <div className="mt-3 rounded-xl border border-slate-100 bg-gradient-to-br from-slate-50/80 to-white p-3">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Featured Product</p>
-            <p className="mt-1 line-clamp-1 text-sm font-bold text-slate-900">{primaryProduct?.productName || 'Product catalog available'}</p>
-            <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-0.5 text-[12px] text-slate-600">
-              <span>Price: {primaryProduct?.priceRange || 'On request'}</span>
-              <span>MOQ: {primaryProduct?.moq || 'Custom'}</span>
-              <span>Capacity: {primaryProduct?.productionCapacity || 'On request'}</span>
-              <span>Material: {primaryProduct?.material || 'Mixed'}</span>
-            </div>
-            {primaryProduct?.keywords?.length ? (
-              <div className="mt-2 flex flex-wrap gap-1.5">
-                {primaryProduct.keywords.slice(0, 4).map((keyword) => (
-                  <span
-                    key={keyword}
-                    className="rounded-full border border-indigo-100 bg-indigo-50 px-2 py-0.5 text-[11px] font-medium text-indigo-700"
-                  >
-                    {keyword}
-                  </span>
-                ))}
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Listed Product</p>
+                <p className="mt-0.5 line-clamp-1 text-sm font-bold text-slate-900">{listing.title}</p>
               </div>
-            ) : null}
+              <span className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1 text-sm font-bold text-emerald-700">
+                {priceDisplay}
+              </span>
+            </div>
+            <div className="mt-2 grid grid-cols-3 gap-x-2 text-[12px] text-slate-600">
+              <span>Metal: {listing.metal_type || 'Various'}</span>
+              <span>Grade: {listing.grade || '—'}</span>
+              <span>MOQ: {listing.moq || 'Custom'}</span>
+            </div>
           </div>
 
           {/* Trust layer + CTA */}
           <div className="mt-3 flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <span className={`inline-flex items-center gap-0.5 rounded-md px-2 py-0.5 text-[11px] font-semibold ${supplier.isoCertified ? 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200/50' : 'bg-slate-50 text-slate-400'}`}>
+              <span className={`inline-flex items-center gap-0.5 rounded-md px-2 py-0.5 text-[11px] font-semibold ${isoCertified ? 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200/50' : 'bg-slate-50 text-slate-400'}`}>
                 <Award className="h-3 w-3" /> ISO
               </span>
-              <span className={`inline-flex items-center gap-0.5 rounded-md px-2 py-0.5 text-[11px] font-semibold ${supplier.exportReady ? 'bg-blue-50 text-blue-700 ring-1 ring-blue-200/50' : 'bg-slate-50 text-slate-400'}`}>
+              <span className={`inline-flex items-center gap-0.5 rounded-md px-2 py-0.5 text-[11px] font-semibold ${exportCapable ? 'bg-blue-50 text-blue-700 ring-1 ring-blue-200/50' : 'bg-slate-50 text-slate-400'}`}>
                 <Globe2 className="h-3 w-3" /> Export
               </span>
+              {responseRate > 0 && (
+                <span className="rounded-md bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700 ring-1 ring-amber-200/50">
+                  {responseRate}% response
+                </span>
+              )}
             </div>
             <div className="flex items-center gap-1 text-sm font-bold text-blue-600 transition-colors group-hover:text-blue-700">
-              Profile <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1" />
+              Details <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1" />
             </div>
           </div>
         </div>
@@ -281,5 +285,7 @@ export default function ListingCard({
     </Link>
   );
 }
+
+
 
 
