@@ -248,6 +248,7 @@ export function Header() {
         onMouseLeave={scheduleClose}
         onMouseEnter={clearCloseTimer}
         role="banner"
+        style={{ isolation: 'isolate' }} // NEW: Create stacking context without affecting children
       >
         {/* ── Primary Nav Bar ── */}
         <div className="border-b border-slate-200 shadow-sm">
@@ -352,6 +353,12 @@ export function Header() {
                           sideOffset={8}
                           align="end"
                           className="z-[9999] min-w-[260px] overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_16px_48px_rgba(0,0,0,0.14)] animate-in fade-in-0 zoom-in-95"
+                          style={{ 
+                            filter: 'none', // NEW: Ensure no filters are inherited
+                            backdropFilter: 'none', // NEW: Disable backdrop filters
+                            WebkitBackdropFilter: 'none', // NEW: Safari compatibility
+                            willChange: 'auto', // NEW: Optimize rendering
+                          }}
                         >
                           <div className="border-b border-slate-100 px-4 py-3">
                             <div className="truncate text-sm font-bold text-slate-900">{profile?.full_name || 'MetalHub User'}</div>

@@ -101,9 +101,11 @@ export async function GET(request: NextRequest) {
           id, title, slug, metal_type, grade, price_min, price_max, currency, moq, lead_time,
           is_active, is_featured, certifications, moderation_status, created_at,
           company_id,
-          companies!inner(id, name, slug, verification_status, description, response_rate, completion_rate,
+          companies!inner(
+            id, name, slug, verification_status, description, response_rate, completion_rate,
             avg_response_hours, iso_certified, export_capability, established_year, employee_count,
-            city_id, state_id)
+            city_id, state_id, created_at
+          )
         `, { count: 'exact' })
         .eq('is_active', true)
         .is('deleted_at', null);

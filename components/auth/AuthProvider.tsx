@@ -77,6 +77,7 @@ type AuthContextValue = MarketplaceIdentity & {
   session: Session | null;
   user: User | null;
   loading: boolean;
+  roleLoading: boolean; // NEW: Specifically track role hydration
   isAuthenticated: boolean;
   role: MarketplaceRole | null;
   onboardingIncomplete: boolean;
@@ -190,6 +191,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [identity, setIdentity] = useState<MarketplaceIdentity>(EMPTY_IDENTITY);
   const [developmentTrustMode, setDevelopmentTrustMode] = useState(true);
   const [loading, setLoading] = useState(true);
+  const [roleLoading, setRoleLoading] = useState(false); // NEW: Track role hydration specifically
   const isSigningOut = useRef(false);
 
   const refreshIdentity = useCallback(async () => {
@@ -263,6 +265,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(null);
         setIdentity(EMPTY_IDENTITY);
         setLoading(false);
+        setRoleLoading(false); // NEW
         return;
       }
 
@@ -271,6 +274,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setSession(nextSession);
         setUser(nextUser);
         setLoading(true);
+        setRoleLoading(true); // NEW: Set flag before async role fetch
 
         const [nextIdentity, nextDevelopmentTrustMode] = await Promise.all([
           loadMarketplaceIdentity(supabase, nextUser),
@@ -281,6 +285,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setIdentity(nextIdentity);
           setDevelopmentTrustMode(nextDevelopmentTrustMode);
           setLoading(false);
+          setRoleLoading(false); // NEW: Clear flag after role fetch
         }
         return;
       }
@@ -338,6 +343,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       session,
       user,
       loading,
+      roleLoading, // NEW: Include roleLoading flag
       isAuthenticated: Boolean(session?.user),
       role,
       onboardingIncomplete,
@@ -347,7 +353,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signOut,
       ...identity,
     };
-  }, [developmentTrustMode, identity, loading, refreshIdentity, session, signOut, supabase, user]);
+  }, [developmentTrustMode, identity, loading, roleLoading, refreshIdentity, session, signOut, supabase, user]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

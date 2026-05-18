@@ -20,7 +20,7 @@ export default function LoginPage() {
 function LoginForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const { supabase, refreshIdentity } = useAuth()
+  const { supabase, refreshIdentity, role, roleLoading } = useAuth()
   const [isLoading, setIsLoading] = useState(false)
   const [method, setMethod] = useState<"email" | "otp">("email")
   const [showPassword, setShowPassword] = useState(false)
@@ -31,12 +31,13 @@ function LoginForm() {
   const [otpSent, setOtpSent] = useState(false)
 
   // Determine where to redirect after login
-  const getRedirectPath = (role?: string) => {
+  const getRedirectPath = (roleParam?: string) => {
     const redirectParam = searchParams.get("redirect")
     if (redirectParam) return redirectParam
-    if (role === "seller" || role === "both" || role === "manufacturer" || role === "distributor") return "/seller/dashboard"
-    if (role === "super_admin" || role === "admin") return "/admin"
-    if (role === "moderator" || role === "support_agent" || role === "supplier_success") return "/ops"
+    const effectiveRole = roleParam || role
+    if (effectiveRole === "seller" || effectiveRole === "both" || effectiveRole === "manufacturer" || effectiveRole === "distributor") return "/seller/dashboard"
+    if (effectiveRole === "super_admin" || effectiveRole === "admin") return "/admin"
+    if (effectiveRole === "moderator" || effectiveRole === "support_agent" || effectiveRole === "supplier_success") return "/ops"
     return "/marketplace"
   }
 
@@ -56,12 +57,21 @@ function LoginForm() {
         setError(authError.message); return
       }
       if (data.session) {
-        // Refresh the identity context so the navbar updates immediately
-        // This also fetches the DB profile which has the authoritative role
+        // Wait briefly for auth state listener to fire and set role
+        // The auth provider will update roleLoading when role is fetched
+        // Give it max 5 seconds to load the role
+        let roleCheckCount = 0
+        while (roleCheckCount < 50 && roleLoading) {
+          await new Promise(resolve => setTimeout(resolve, 100))
+          roleCheckCount++
+        }
+        
+        // After role is loaded, refresh identity one more time to ensure consistency
         await refreshIdentity()
-        // Read role from app_metadata first (set by us), then user_metadata, then fallback
-        const role = data.user?.app_metadata?.role || data.user?.user_metadata?.role || "buyer"
-        router.push(getRedirectPath(role))
+        
+        // Get role from metadata or context
+        const resolvedRole = data.user?.app_metadata?.role || data.user?.user_metadata?.role || role || "buyer"
+        router.push(getRedirectPath(resolvedRole as string))
         router.refresh()
       }
     } catch (err: any) { setError(err?.message || "An unexpected error occurred") }
@@ -89,8 +99,15 @@ function LoginForm() {
       })
       if (verifyError) { setError(verifyError.message); return }
       if (data.session) {
+        // Wait for role to load via auth state listener
+        let roleCheckCount = 0
+        while (roleCheckCount < 50 && roleLoading) {
+          await new Promise(resolve => setTimeout(resolve, 100))
+          roleCheckCount++
+        }
+        
         await refreshIdentity()
-        router.push(getRedirectPath())
+        router.push(getRedirectPath(role || undefined))
         router.refresh()
       }
     } catch (err: any) { setError(err?.message || "OTP verification failed") }
