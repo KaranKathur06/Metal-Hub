@@ -192,19 +192,19 @@ export default function MarketplaceTabs() {
       });
   }, []);
 
-  // Load locations from countries DB
+  // Load locations from cities DB
   useEffect(() => {
     const supabase = getSupabaseBrowserClient();
     if (!supabase) return;
     supabase
-      .from('countries')
-      .select('name,iso2')
+      .from('cities')
+      .select('id, name')
       .eq('is_active', true)
       .is('deleted_at', null)
       .order('sort_order', { ascending: true })
       .order('name', { ascending: true })
       .then(({ data }) => {
-        if (data) setLocationOptions(data.map((d: any) => ({ label: d.name, value: d.iso2?.toLowerCase() || d.name.toLowerCase() })));
+        if (data) setLocationOptions(data.map((d: any) => ({ label: d.name, value: d.id })));
       });
   }, []);
 

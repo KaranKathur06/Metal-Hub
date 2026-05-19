@@ -140,7 +140,7 @@ export async function middleware(request: NextRequest) {
 
   // ── Authenticated → auth route: redirect to dashboard ──
   if (isAuthRoute && user) {
-    const role = user.user_metadata?.role || user.app_metadata?.role || ''
+    const role = user.app_metadata?.role || user.user_metadata?.role || ''
     let dashboardUrl = "/dashboard"
     if (role === "seller" || role === "manufacturer" || role === "distributor") dashboardUrl = "/seller/dashboard"
     else if (role === "buyer") dashboardUrl = "/buyer/dashboard"

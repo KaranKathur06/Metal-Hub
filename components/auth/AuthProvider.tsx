@@ -109,13 +109,17 @@ function fallbackProfileFromUser(user: User | null): MarketplaceProfile | null {
   if (!user) return null;
 
   const metadata = user.user_metadata ?? {};
+  const appMeta = user.app_metadata ?? {};
   const VALID_ROLES: MarketplaceRole[] = [
     "buyer", "seller", "both", "admin", "super_admin", "moderator",
     "supplier_success", "support_agent", "finance", "marketing",
     "manufacturer", "distributor", "logistics",
   ];
-  const role: MarketplaceRole = VALID_ROLES.includes(metadata.role)
-    ? metadata.role
+  
+  // Migration 0007 sets role in app_metadata for secure roles like super_admin
+  const candidateRole = appMeta.role || metadata.role;
+  const role: MarketplaceRole = VALID_ROLES.includes(candidateRole)
+    ? candidateRole
     : "buyer";
 
   return {

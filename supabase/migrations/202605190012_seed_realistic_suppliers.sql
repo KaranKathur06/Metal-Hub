@@ -24,16 +24,39 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+-- ─── 0.5 Create a System Seed User ───
+DO $$ 
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM auth.users WHERE email = 'system.seed@metalhub.com') THEN
+    INSERT INTO auth.users (id, instance_id, aud, role, email, encrypted_password, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at, confirmation_token, email_change, email_change_token_new, recovery_token)
+    VALUES (
+      '00000000-0000-0000-0000-000000000000',
+      '00000000-0000-0000-0000-000000000000',
+      'authenticated',
+      'authenticated',
+      'system.seed@metalhub.com',
+      crypt('SeedPassword123!', gen_salt('bf')),
+      now(),
+      '{"provider": "email", "providers": ["email"], "role": "super_admin"}',
+      '{"role": "super_admin", "full_name": "System Seeder"}',
+      now(),
+      now(),
+      '', '', '', ''
+    );
+  END IF;
+END $$;
+
 -- ─── 1. Seed 45 Realistic Industrial Suppliers ───
 INSERT INTO public.companies (
-  name, slug, description, website, gst_identifier, logo_url, banner_url,
+  owner_id, name, slug, description, website, gst_identifier, logo_url, banner_url,
   verification_status, response_rate, completion_rate, avg_response_hours,
   iso_certified, export_capability, established_year, employee_count,
   city_id, state_id, country_id, created_at, updated_at
 )
-SELECT * FROM (
+SELECT '00000000-0000-0000-0000-000000000000'::uuid, * FROM (
+  VALUES
   -- Rajkot-based suppliers (Forging & Metal Casting hub)
-  ('Rajkot Precision Forgings Pvt Ltd', 'rajkot-precision-forgings', 
+  ('Rajkot Precision Forgings Pvt Ltd', 'rajkot-precision-forgings',  
    'Forged crankshafts, connecting rods, and alloy steel components for automotive OEMs. ISO 9001:2015 certified. 20+ years in precision forging.', 
    'www.rajkotforgings.com', '27AABCT3456K1Z0', NULL, NULL,
    'approved', 92, 95, 3, true, true, 2001, 180,

@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
       // Step 1: If filters are active, get matching company IDs via junction tables
       let filteredCompanyIds: string[] | null = null;
 
-      if (capabilityFilter.length > 0 || industryFilter.length > 0 || categoryFilter.length > 0) {
+      if (capabilityFilter.length > 0 || industryFilter.length > 0 || categoryFilter.length > 0 || locationFilter.length > 0 || search) {
         const companyIdSets: Set<string>[] = [];
 
         if (capabilityFilter.length > 0) {
@@ -72,6 +72,16 @@ export async function GET(request: NextRequest) {
             .in('taxonomy.slug', categoryFilter);
           if (prodMatches) {
             companyIdSets.push(new Set(prodMatches.map((r: any) => r.company_id)));
+          }
+        }
+        
+        if (locationFilter.length > 0) {
+          const { data: locationMatches } = await supabase
+            .from('companies')
+            .select('id')
+            .in('city_id', locationFilter);
+          if (locationMatches) {
+            companyIdSets.push(new Set(locationMatches.map((r: any) => r.id)));
           }
         }
 
@@ -120,9 +130,9 @@ export async function GET(request: NextRequest) {
         query = query.eq('companies.verification_status', 'approved');
       }
 
-      // Search
+      // Search: match listings OR match company name
       if (search) {
-        query = query.or(`title.ilike.%${search}%,metal_type.ilike.%${search}%,grade.ilike.%${search}%`);
+        query = query.or(`title.ilike.%${search}%,metal_type.ilike.%${search}%,grade.ilike.%${search}%,companies.name.ilike.%${search}%`);
       }
 
       // Date filter

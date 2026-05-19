@@ -2,12 +2,14 @@
 // PostgreSQL Database
 
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["multiSchema"]
 }
 
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+  schemas  = ["public", "auth"]
 }
 
 // ============================================
@@ -52,18 +54,23 @@ model User {
   @@index([role])
   @@index([status])
   @@map("users")
+  @@schema("public")
 }
 
 enum UserRole {
   BUYER
   SELLER
   ADMIN
+
+  @@schema("public")
 }
 
 enum UserStatus {
   ACTIVE
   SUSPENDED
   BANNED
+
+  @@schema("public")
 }
 
 // ============================================
@@ -85,12 +92,15 @@ model Profile {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("profiles")
+  @@schema("public")
 }
 
 enum KycStatus {
   PENDING
   VERIFIED
   REJECTED
+
+  @@schema("public")
 }
 
 // ============================================
@@ -112,18 +122,23 @@ model Membership {
   @@index([status])
   @@index([plan])
   @@map("memberships")
+  @@schema("public")
 }
 
 enum MembershipPlan {
   FREE
   SILVER
   GOLD
+
+  @@schema("public")
 }
 
 enum MembershipStatus {
   ACTIVE
   EXPIRED
   CANCELLED
+
+  @@schema("public")
 }
 
 // ============================================
@@ -175,16 +190,21 @@ model Listing {
   @@index([isFeatured])
   @@index([createdAt])
   @@map("listings")
+  @@schema("public")
 }
 
 enum ListingRole {
   BUYER
   SUPPLIER
+
+  @@schema("public")
 }
 
 enum ListingType {
   BUY_LEADS
   MEMBERS
+
+  @@schema("public")
 }
 
 enum MetalType {
@@ -195,6 +215,8 @@ enum MetalType {
   BRASS
   STAINLESS_STEEL
   OTHER
+
+  @@schema("public")
 }
 
 enum ListingStatus {
@@ -203,6 +225,8 @@ enum ListingStatus {
   REJECTED
   SOLD
   EXPIRED
+
+  @@schema("public")
 }
 
 // ============================================
@@ -220,6 +244,7 @@ model ListingImage {
 
   @@index([listingId])
   @@map("listing_images")
+  @@schema("public")
 }
 
 // ============================================
@@ -244,6 +269,7 @@ model Chat {
   @@index([sellerId])
   @@index([listingId])
   @@map("chats")
+  @@schema("public")
 }
 
 // ============================================
@@ -263,6 +289,7 @@ model Message {
   @@index([senderId])
   @@index([createdAt])
   @@map("messages")
+  @@schema("public")
 }
 
 // ============================================
@@ -284,6 +311,7 @@ model Offer {
   @@index([buyerId])
   @@index([status])
   @@map("offers")
+  @@schema("public")
 }
 
 enum OfferStatus {
@@ -292,6 +320,8 @@ enum OfferStatus {
   REJECTED
   COUNTERED
   EXPIRED
+
+  @@schema("public")
 }
 
 // ============================================
@@ -315,6 +345,7 @@ model Payment {
   @@index([razorpayOrderId])
   @@index([status])
   @@map("payments")
+  @@schema("public")
 }
 
 enum PaymentStatus {
@@ -322,6 +353,8 @@ enum PaymentStatus {
   SUCCESS
   FAILED
   REFUNDED
+
+  @@schema("public")
 }
 
 // ============================================
@@ -336,6 +369,7 @@ model RazorpayEvent {
   @@index([eventType])
   @@index([receivedAt])
   @@map("razorpay_events")
+  @@schema("public")
 }
 
 // ============================================
@@ -357,6 +391,7 @@ model LoginActivity {
   @@index([deviceFingerprint])
   @@index([createdAt])
   @@map("login_activity")
+  @@schema("public")
 }
 
 // ============================================
@@ -376,6 +411,7 @@ model AdminLog {
   @@index([action])
   @@index([createdAt])
   @@map("admin_logs")
+  @@schema("public")
 }
 
 // ============================================
@@ -395,6 +431,7 @@ model Banner {
 
   @@index([isActive, orderIndex])
   @@map("banners")
+  @@schema("public")
 }
 
 // ============================================
@@ -422,6 +459,7 @@ model Capability {
 
   @@index([isActive, orderIndex])
   @@map("capabilities")
+  @@schema("public")
 }
 
 model Industry {
@@ -436,6 +474,7 @@ model Industry {
 
   @@index([name])
   @@map("industries")
+  @@schema("public")
 }
 
 model Category {
@@ -454,6 +493,7 @@ model Category {
   @@index([name])
   @@index([parentId])
   @@map("categories")
+  @@schema("public")
 }
 
 // ============================================
@@ -500,12 +540,15 @@ model Inquiry {
   @@index([keywords], type: Gin)
   @@index([applications], type: Gin)
   @@map("inquiries")
+  @@schema("public")
 }
 
 enum InquiryStatus {
   OPEN
   PAUSED
   CLOSED
+
+  @@schema("public")
 }
 
 // ============================================
@@ -536,6 +579,7 @@ model Supplier {
   @@index([location])
   @@index([createdAt])
   @@map("suppliers")
+  @@schema("public")
 }
 
 // ============================================
@@ -572,6 +616,7 @@ model SupplierProduct {
   @@index([industries], type: Gin)
   @@index([applications], type: Gin)
   @@map("supplier_products")
+  @@schema("public")
 }
 
 model SupplierCapability {
@@ -585,6 +630,7 @@ model SupplierCapability {
   @@id([supplierId, capabilityId])
   @@index([capabilityId])
   @@map("supplier_capabilities")
+  @@schema("public")
 }
 
 model SupplierIndustry {
@@ -598,6 +644,7 @@ model SupplierIndustry {
   @@id([supplierId, industryId])
   @@index([industryId])
   @@map("supplier_industries")
+  @@schema("public")
 }
 
 model ProductCapability {
@@ -611,6 +658,7 @@ model ProductCapability {
   @@id([productId, capabilityId])
   @@index([capabilityId])
   @@map("product_capabilities")
+  @@schema("public")
 }
 
 model RequirementCapability {
@@ -624,6 +672,7 @@ model RequirementCapability {
   @@id([requirementId, capabilityId])
   @@index([capabilityId])
   @@map("requirement_capabilities")
+  @@schema("public")
 }
 
 // ============================================
@@ -642,6 +691,7 @@ model OpsRole {
   users       OpsUserRole[]
 
   @@map("ops_roles")
+  @@schema("public")
 }
 
 model OpsPermission {
@@ -658,6 +708,7 @@ model OpsPermission {
   @@index([module])
   @@index([resource])
   @@map("ops_permissions")
+  @@schema("public")
 }
 
 model OpsRolePermission {
@@ -670,6 +721,7 @@ model OpsRolePermission {
 
   @@id([roleId, permissionId])
   @@map("ops_role_permissions")
+  @@schema("public")
 }
 
 model OpsUserRole {
@@ -684,6 +736,7 @@ model OpsUserRole {
 
   @@id([userId, roleId])
   @@map("ops_user_roles")
+  @@schema("public")
 }
 
 // ============================================
@@ -715,6 +768,7 @@ model Lead {
   @@index([source])
   @@index([createdAt])
   @@map("leads")
+  @@schema("public")
 }
 
 enum LeadStage {
@@ -724,6 +778,8 @@ enum LeadStage {
   NEGOTIATION
   CONVERTED
   LOST
+
+  @@schema("public")
 }
 
 model LeadActivity {
@@ -742,6 +798,7 @@ model LeadActivity {
   @@index([userId])
   @@index([createdAt])
   @@map("lead_activities")
+  @@schema("public")
 }
 
 // ============================================
@@ -768,6 +825,7 @@ model AuditLog {
   @@index([resourceId])
   @@index([createdAt])
   @@map("audit_logs")
+  @@schema("public")
 }
 
 // ============================================
@@ -790,4 +848,5 @@ model Notification {
   @@index([priority])
   @@index([createdAt])
   @@map("notifications")
+  @@schema("public")
 }
