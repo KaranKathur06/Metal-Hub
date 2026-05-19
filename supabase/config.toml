@@ -1,0 +1,7 @@
+# MetalHub — Supabase project config
+# Project ref matches NEXT_PUBLIC_SUPABASE_URL (…/lrfvfvxfjpowskzqebar.supabase.co)
+
+project_id = "lrfvfvxfjpowskzqebar"
+
+[db]
+major_version = 15
