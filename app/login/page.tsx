@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
 import { useAuth } from "@/components/auth/AuthProvider"
+import { resolveAuthRole } from "@/lib/auth/profile-role"
+import { getHomePathForRole } from "@/lib/auth/role-routing"
 
 export default function LoginPage() {
   return (
@@ -20,7 +22,7 @@ export default function LoginPage() {
 function LoginForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const { supabase, refreshIdentity, role, roleLoading } = useAuth()
+  const { supabase, refreshIdentity, roleLoading, loading: authBootLoading } = useAuth()
   const [isLoading, setIsLoading] = useState(false)
   const [method, setMethod] = useState<"email" | "otp">("email")
   const [showPassword, setShowPassword] = useState(false)
@@ -30,15 +32,23 @@ function LoginForm() {
   })
   const [otpSent, setOtpSent] = useState(false)
 
-  // Determine where to redirect after login
-  const getRedirectPath = (roleParam?: string) => {
+  async function resolvePostLoginPath(userId: string, user: NonNullable<Awaited<ReturnType<NonNullable<typeof supabase>["auth"]["getUser"]>>["data"]["user"]>) {
     const redirectParam = searchParams.get("redirect")
     if (redirectParam) return redirectParam
-    const effectiveRole = roleParam || role
-    if (effectiveRole === "seller" || effectiveRole === "both" || effectiveRole === "manufacturer" || effectiveRole === "distributor") return "/seller/dashboard"
-    if (effectiveRole === "super_admin" || effectiveRole === "admin") return "/admin"
-    if (effectiveRole === "moderator" || effectiveRole === "support_agent" || effectiveRole === "supplier_success") return "/ops"
-    return "/marketplace"
+
+    const { data: profile } = await supabase!
+      .from("profiles")
+      .select("role")
+      .eq("id", userId)
+      .maybeSingle()
+
+    const resolvedRole = resolveAuthRole({
+      profileRole: profile?.role,
+      appMetadataRole: user.app_metadata?.role,
+      userMetadataRole: user.user_metadata?.role,
+    })
+
+    return getHomePathForRole(resolvedRole)
   }
 
   const handleEmailLogin = async (e: React.FormEvent) => {
@@ -56,22 +66,10 @@ function LoginForm() {
         }
         setError(authError.message); return
       }
-      if (data.session) {
-        // Wait briefly for auth state listener to fire and set role
-        // The auth provider will update roleLoading when role is fetched
-        // Give it max 5 seconds to load the role
-        let roleCheckCount = 0
-        while (roleCheckCount < 50 && roleLoading) {
-          await new Promise(resolve => setTimeout(resolve, 100))
-          roleCheckCount++
-        }
-        
-        // After role is loaded, refresh identity one more time to ensure consistency
+      if (data.session && data.user) {
         await refreshIdentity()
-        
-        // Get role from metadata or context
-        const resolvedRole = data.user?.app_metadata?.role || data.user?.user_metadata?.role || role || "buyer"
-        router.push(getRedirectPath(resolvedRole as string))
+        const destination = await resolvePostLoginPath(data.user.id, data.user)
+        router.push(destination)
         router.refresh()
       }
     } catch (err: any) { setError(err?.message || "An unexpected error occurred") }
@@ -98,16 +96,10 @@ function LoginForm() {
         phone: formData.phone, token: formData.otp, type: "sms",
       })
       if (verifyError) { setError(verifyError.message); return }
-      if (data.session) {
-        // Wait for role to load via auth state listener
-        let roleCheckCount = 0
-        while (roleCheckCount < 50 && roleLoading) {
-          await new Promise(resolve => setTimeout(resolve, 100))
-          roleCheckCount++
-        }
-        
+      if (data.session && data.user) {
         await refreshIdentity()
-        router.push(getRedirectPath(role || undefined))
+        const destination = await resolvePostLoginPath(data.user.id, data.user)
+        router.push(destination)
         router.refresh()
       }
     } catch (err: any) { setError(err?.message || "OTP verification failed") }
@@ -186,7 +178,7 @@ function LoginForm() {
                   <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700" tabIndex={-1}>{showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}</button>
                 </div>
                 <div className="flex justify-end -mt-1 mb-1"><Link href="/forgot-password" className="text-xs font-semibold text-blue-600 hover:text-blue-800">Forgot password?</Link></div>
-                <Button type="submit" disabled={isLoading} className="w-full h-[44px] text-sm font-bold text-white rounded-xl bg-gradient-to-r from-[#1e3a8a] to-[#3b82f6] shadow-md hover:-translate-y-[1px] transition-transform">{isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Login</Button>
+                <Button type="submit" disabled={isLoading || roleLoading || authBootLoading} className="w-full h-[44px] text-sm font-bold text-white rounded-xl bg-gradient-to-r from-[#1e3a8a] to-[#3b82f6] shadow-md hover:-translate-y-[1px] transition-transform">{(isLoading || roleLoading) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}{roleLoading ? "Loading auth state..." : "Login"}</Button>
               </form>
             ) : (
               <form onSubmit={otpSent ? handleOtpLogin : (e) => { e.preventDefault(); handleOtpRequest() }} className="flex flex-col gap-3">

@@ -44,11 +44,12 @@ type SettingsVersion = {
 };
 
 export default async function RankingPreviewPage() {
-    const supabase = await createClient();
+    const supabase = createClient();
+    if (!supabase) redirect("/login");
     const auth = await hydrateAuthState(supabase);
 
     if (auth.status === "unauthenticated") redirect("/login");
-    if (auth.role !== "superadmin") redirect("/dashboard/buyer");
+    if (auth.role !== "super_admin") redirect("/buyer/dashboard");
 
     const [settingsResult, snapshotsResult] = await Promise.all([
         supabase
@@ -198,13 +199,91 @@ export default async function RankingPreviewPage() {
     );
 }
 
+function formatDate(value: string) {
+    return new Intl.DateTimeFormat("en-IN", {
+        dateStyle: "medium",
+        timeStyle: "short",
+    }).format(new Date(value));
+}
+
+function simulateSnapshotRanking(snapshot: RankingSnapshot, version: SettingsVersion) {
+    const suppliers = snapshot.snapshot_data_json.suppliers ?? [];
+
+    return suppliers
+        .map((supplier) => {
+            const verificationBoost =
+                supplier.verification_status === "verified"
+                    ? version.verification_weight
+                    : 0;
+            const preview_score =
+                supplier.supplier_rank_score +
+                verificationBoost +
+                (supplier.profile_completeness / 100) * version.profile_completeness_weight +
+                Math.log1p(supplier.interaction_count) * version.interaction_weight +
+                supplier.activity_score * version.activity_weight;
+
+            return { ...supplier, preview_score };
+        })
+        .sort((a, b) => b.preview_score - a.preview_score);
+}
+
 async function requireSuperadmin() {
     "use server";
 
-    const supabase = await createClient();
+    const supabase = createClient();
+    if (!supabase) redirect("/login");
     const auth = await hydrateAuthState(supabase);
 
     if (auth.status === "unauthenticated") redirect("/login");
-    if (auth.role !== "superadmin") redirect("/dashboard/buyer");
+    if (auth.role !== "super_admin") redirect("/buyer/dashboard");
 
-    return { supabase
+    return { supabase, auth };
+}
+
+async function createRankingSnapshot() {
+    "use server";
+
+    const { supabase, auth } = await requireSuperadmin();
+
+    const { data: suppliers, error: suppliersError } = await supabase
+        .from("suppliers")
+        .select(
+            "id, company_name, slug, city, verification_status, is_seeded, supplier_rank_score, profile_completeness, interaction_count, activity_score",
+        )
+        .eq("is_published", true)
+        .order("supplier_rank_score", { ascending: false })
+        .limit(100);
+
+    if (suppliersError) {
+        throw new Error(`Supplier snapshot load failed: ${suppliersError.message}`);
+    }
+
+    const { count: rfqCount, error: rfqError } = await supabase
+        .from("rfqs")
+        .select("id", { count: "exact", head: true });
+
+    if (rfqError) {
+        throw new Error(`RFQ snapshot count failed: ${rfqError.message}`);
+    }
+
+    const { data: activeSettings } = await supabase
+        .from("marketplace_settings_versions")
+        .select("id")
+        .eq("is_active", true)
+        .maybeSingle();
+
+    const { error } = await supabase.from("marketplace_ranking_snapshots").insert({
+        settings_version_id: activeSettings?.id ?? null,
+        snapshot_data_json: { suppliers: suppliers ?? [] },
+        supplier_count: suppliers?.length ?? 0,
+        rfq_count: rfqCount ?? 0,
+        notes: "Manual ranking preview snapshot",
+        created_by: auth.user.id,
+    });
+
+    if (error) {
+        throw new Error(`Snapshot creation failed: ${error.message}`);
+    }
+
+    revalidatePath("/admin/ranking-preview");
+}

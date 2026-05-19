@@ -32,11 +32,12 @@ type MarketplaceSettingsVersion = {
 };
 
 export default async function MarketplaceSettingsPage() {
-    const supabase = await createClient();
+    const supabase = createClient();
+    if (!supabase) redirect("/login");
     const auth = await hydrateAuthState(supabase);
 
     if (auth.status === "unauthenticated") redirect("/login");
-    if (auth.role !== "superadmin") redirect("/dashboard/buyer");
+    if (auth.role !== "super_admin") redirect("/buyer/dashboard");
 
     const { data, error } = await supabase
         .from("marketplace_settings_versions")
@@ -172,11 +173,12 @@ export default async function MarketplaceSettingsPage() {
 async function requireSuperadmin() {
     "use server";
 
-    const supabase = await createClient();
+    const supabase = createClient();
+    if (!supabase) redirect("/login");
     const auth = await hydrateAuthState(supabase);
 
     if (auth.status === "unauthenticated") redirect("/login");
-    if (auth.role !== "superadmin") redirect("/dashboard/buyer");
+    if (auth.role !== "super_admin") redirect("/buyer/dashboard");
 
     return { supabase, auth };
 }

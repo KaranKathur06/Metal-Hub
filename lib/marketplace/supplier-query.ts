@@ -1,8 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type {
-    SupplierCertificationSummary,
-    VerificationStatus,
-} from "./ranking";
+import type { SupplierCertificationSummary } from "./ranking";
+import type { VerificationStatus } from "./types";
 import type { SupplierSearchFilters } from "./search";
 
 export type MarketplaceFacet = {

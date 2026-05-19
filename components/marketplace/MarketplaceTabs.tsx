@@ -7,7 +7,22 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import FilterDropdown from './FilterDropdown';
 import ListingCard from './ListingCard';
+import { SupplierCard } from './SupplierCard';
 import { getSupabaseBrowserClient } from '../../lib/supabase/browser-client';
+import type { MarketplaceSupplier } from '@/lib/marketplace/supplier-query';
+
+const MARKETPLACE_CITIES = [
+  { label: 'Rajkot', value: 'Rajkot' },
+  { label: 'Ahmedabad', value: 'Ahmedabad' },
+  { label: 'Pune', value: 'Pune' },
+  { label: 'Mumbai', value: 'Mumbai' },
+  { label: 'Chennai', value: 'Chennai' },
+  { label: 'Coimbatore', value: 'Coimbatore' },
+  { label: 'Bengaluru', value: 'Bengaluru' },
+  { label: 'Vadodara', value: 'Vadodara' },
+  { label: 'Faridabad', value: 'Faridabad' },
+  { label: 'Surat', value: 'Surat' },
+];
 
 type CapabilityOption = { id: string; name: string; slug: string };
 
@@ -192,20 +207,8 @@ export default function MarketplaceTabs() {
       });
   }, []);
 
-  // Load locations from cities DB
   useEffect(() => {
-    const supabase = getSupabaseBrowserClient();
-    if (!supabase) return;
-    supabase
-      .from('cities')
-      .select('id, name')
-      .eq('is_active', true)
-      .is('deleted_at', null)
-      .order('sort_order', { ascending: true })
-      .order('name', { ascending: true })
-      .then(({ data }) => {
-        if (data) setLocationOptions(data.map((d: any) => ({ label: d.name, value: d.id })));
-      });
+    setLocationOptions(MARKETPLACE_CITIES);
   }, []);
 
   // Load materials from taxonomy DB
@@ -392,7 +395,13 @@ export default function MarketplaceTabs() {
                 ? Array.from({ length: 6 }).map((_, i) => (
                     <div key={i} className="h-[360px] animate-pulse rounded-2xl border border-slate-200 bg-slate-50" />
                   ))
-                : rows.map((item) => <ListingCard key={item.id} tab={activeType} item={item} />)}
+                : rows.map((item) =>
+                    activeType === 'suppliers' ? (
+                      <SupplierCard key={item.id} supplier={item as MarketplaceSupplier} />
+                    ) : (
+                      <ListingCard key={item.id} tab={activeType} item={item} />
+                    ),
+                  )}
             </div>
           ) : null}
 

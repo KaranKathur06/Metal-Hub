@@ -91,6 +91,34 @@ export function splitCertificationsByLifecycle(certifications: MarketplaceCertif
     };
 }
 
+export type SupplierCertificationSummary = {
+    name: string;
+    slug: string;
+    status?: string;
+    expires_at?: string | null;
+    business_priority?: number;
+    global_recognition_level?: number;
+};
+
+export function getVisibleCertificationBadges(
+    certifications: SupplierCertificationSummary[],
+    limit = 3,
+) {
+    const sorted = [...certifications].sort((a, b) => {
+        const aWeight =
+            (a.business_priority ?? 0) * 2 + (a.global_recognition_level ?? 0);
+        const bWeight =
+            (b.business_priority ?? 0) * 2 + (b.global_recognition_level ?? 0);
+        return bWeight - aWeight || a.name.localeCompare(b.name);
+    });
+
+    return {
+        visible: sorted.slice(0, limit),
+        overflow: sorted.slice(limit),
+        overflowCount: Math.max(0, sorted.length - limit),
+    };
+}
+
 export function computeClientSideSupplierScore(params: {
     supplier: SupplierSearchResult;
     realSupplierCount: number;

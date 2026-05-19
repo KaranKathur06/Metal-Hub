@@ -11,8 +11,9 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { useAuth } from '@/components/auth/AuthProvider';
+import { ProfileDropdown } from '@/components/layout/ProfileDropdown';
+import { resolveAuthRole, type AppRole } from '@/lib/auth/profile-role';
 import { getAuthenticatedNavItems, getOnboardingHref } from '@/lib/marketplace/auth-navigation';
 import { useTaxonomyRegistry } from '@/lib/marketplace/use-taxonomy-registry';
 import type { TaxonomyNode } from '@/lib/marketplace/taxonomy';
@@ -155,15 +156,20 @@ export function Header() {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [activeMenu, setActiveMenu] = useState<MenuKey>(null);
-  const [userMenuOpen, setUserMenuOpen] = useState(false);
   const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const headerRef = useRef<HTMLElement>(null);
 
   const { data: taxonomy, loading: taxLoading } = useTaxonomyRegistry();
   const {
-    loading: authLoading, isAuthenticated, profile, role,
+    loading: authLoading, roleLoading, isAuthenticated, profile, role,
     dashboardHref, onboardingIncomplete, signOut,
   } = useAuth();
+
+  const profileRole: AppRole = resolveAuthRole({
+    profileRole: role,
+    appMetadataRole: role,
+    userMetadataRole: role,
+  });
 
   const navItems = isAuthenticated ? getAuthenticatedNavItems(role) : [];
 
@@ -313,7 +319,7 @@ export function Header() {
             {/* Right: Auth */}
             <div className="flex items-center gap-2">
               <div className="hidden items-center gap-1.5 lg:flex">
-                {authLoading ? (
+                {authLoading || roleLoading ? (
                   <div className="h-9 w-32 animate-pulse rounded-md bg-slate-100" />
                 ) : isAuthenticated ? (
                   <>
@@ -334,66 +340,14 @@ export function Header() {
                       </Button>
                     </Link>
 
-                    {/* ═══ User dropdown (Radix portaled) ═══ */}
-                    <DropdownMenu.Root open={userMenuOpen} onOpenChange={setUserMenuOpen}>
-                      <DropdownMenu.Trigger asChild>
-                        <button type="button" className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 hover:bg-slate-100" aria-label="Account menu">
-                          {profile?.avatar_url ? (
-                            <img className="h-7 w-7 rounded-full object-cover ring-2 ring-slate-200" src={profile.avatar_url} alt="" />
-                          ) : (
-                            <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-[#1e3a8a] to-[#3b82f6] text-[11px] font-bold text-white">
-                              {getInitials(profile?.full_name, profile?.email)}
-                            </span>
-                          )}
-                          <ChevronDown className={cn('h-3 w-3 text-slate-400 transition-transform', userMenuOpen && 'rotate-180')} />
-                        </button>
-                      </DropdownMenu.Trigger>
-                      <DropdownMenu.Portal>
-                        <DropdownMenu.Content
-                          sideOffset={8}
-                          align="end"
-                          className="z-[9999] min-w-[260px] overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_16px_48px_rgba(0,0,0,0.14)] animate-in fade-in-0 zoom-in-95"
-                          style={{ 
-                            filter: 'none', // NEW: Ensure no filters are inherited
-                            backdropFilter: 'none', // NEW: Disable backdrop filters
-                            WebkitBackdropFilter: 'none', // NEW: Safari compatibility
-                            willChange: 'auto', // NEW: Optimize rendering
-                          }}
-                        >
-                          <div className="border-b border-slate-100 px-4 py-3">
-                            <div className="truncate text-sm font-bold text-slate-900">{profile?.full_name || 'MetalHub User'}</div>
-                            <div className="truncate text-xs text-slate-500">{profile?.email}</div>
-                            {role && <span className="mt-1 inline-block rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-blue-700">{role}</span>}
-                          </div>
-                          <div className="max-h-64 overflow-y-auto py-1">
-                            {navItems.map((item) => (
-                              <DropdownMenu.Item key={`${item.label}-${item.href}`} asChild>
-                                <Link href={item.href} className="block px-4 py-2 text-sm text-slate-700 outline-none hover:bg-slate-50 focus:bg-slate-50">{item.label}</Link>
-                              </DropdownMenu.Item>
-                            ))}
-                          </div>
-                          <div className="border-t border-slate-100 py-1">
-                            <DropdownMenu.Item asChild>
-                              <Link href="/settings" className="flex items-center gap-2 px-4 py-2 text-sm text-slate-700 outline-none hover:bg-slate-50 focus:bg-slate-50">
-                                <Settings className="h-4 w-4" /> Settings
-                              </Link>
-                            </DropdownMenu.Item>
-                            <DropdownMenu.Item asChild>
-                              <button
-                                type="button"
-                                className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-red-600 outline-none hover:bg-red-50 focus:bg-red-50"
-                                onClick={() => {
-                                  setUserMenuOpen(false);
-                                  void signOut();
-                                }}
-                              >
-                                <LogOut className="h-4 w-4" /> Logout
-                              </button>
-                            </DropdownMenu.Item>
-                          </div>
-                        </DropdownMenu.Content>
-                      </DropdownMenu.Portal>
-                    </DropdownMenu.Root>
+                    <ProfileDropdown
+                      user={{
+                        email: profile?.email ?? null,
+                        fullName: profile?.full_name,
+                        role: profileRole,
+                      }}
+                      onSignOut={signOut}
+                    />
                   </>
                 ) : (
                   <>
@@ -489,7 +443,7 @@ export function Header() {
 
             <div className="my-3 border-t border-slate-100" />
 
-            {authLoading ? (
+            {authLoading || roleLoading ? (
               <div className="h-10 animate-pulse rounded-lg bg-slate-100" />
             ) : isAuthenticated ? (
               <div className="space-y-1">

@@ -24,6 +24,86 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+-- ─── 0.25 FIX TRIGGER CAST ───
+-- The profile table was updated to use app_role instead of mh_user_role
+-- We must update the trigger before it fires for our seed user.
+CREATE OR REPLACE FUNCTION public.handle_new_user_profile()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  requested_role text;
+  valid_role public.app_role;
+  user_full_name text;
+  user_phone text;
+  user_avatar text;
+BEGIN
+  -- Extract role from metadata safely
+  requested_role := COALESCE(
+    NEW.raw_user_meta_data->>'role',
+    ''
+  );
+
+  -- Validate against ALL enum values
+  BEGIN
+    valid_role := requested_role::public.app_role;
+  EXCEPTION WHEN invalid_text_representation OR others THEN
+    valid_role := 'buyer'::public.app_role;
+  END;
+
+  -- Prevent non-admin signup from claiming admin roles
+  IF valid_role IN ('admin', 'superadmin') THEN
+    valid_role := 'buyer'::public.app_role;
+  END IF;
+
+  -- Extract user metadata safely
+  user_full_name := COALESCE(
+    NEW.raw_user_meta_data->>'full_name',
+    NEW.raw_user_meta_data->>'name',
+    ''
+  );
+  user_phone := COALESCE(
+    NEW.phone,
+    NEW.raw_user_meta_data->>'phone',
+    ''
+  );
+  user_avatar := NEW.raw_user_meta_data->>'avatar_url';
+
+  -- Insert profile with conflict handling
+  INSERT INTO public.profiles (
+    id, email, full_name, phone, role,
+    profile_status, trust_level, onboarding_step,
+    verification_status, avatar_url
+  )
+  VALUES (
+    NEW.id,
+    NEW.email,
+    NULLIF(user_full_name, ''),
+    NULLIF(user_phone, ''),
+    valid_role,
+    'incomplete',
+    0,
+    1,
+    CASE WHEN NEW.email_confirmed_at IS NOT NULL THEN 'pending' ELSE 'draft' END,
+    user_avatar
+  )
+  ON CONFLICT (id) DO UPDATE
+  SET email = COALESCE(EXCLUDED.email, profiles.email),
+      full_name = COALESCE(profiles.full_name, EXCLUDED.full_name),
+      phone = COALESCE(profiles.phone, EXCLUDED.phone),
+      avatar_url = COALESCE(profiles.avatar_url, EXCLUDED.avatar_url),
+      updated_at = now();
+
+  RETURN NEW;
+EXCEPTION WHEN others THEN
+  -- CRITICAL: Never let the trigger block user creation
+  RAISE WARNING 'handle_new_user_profile failed for user %: %', NEW.id, SQLERRM;
+  RETURN NEW;
+END;
+$$;
+
 -- ─── 0.5 Create a System Seed User ───
 DO $$ 
 BEGIN

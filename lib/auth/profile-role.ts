@@ -1,6 +1,6 @@
 import type { SupabaseClient, User } from "@supabase/supabase-js";
 
-export type AppRole = "buyer" | "seller" | "admin" | "superadmin";
+export type AppRole = "buyer" | "seller" | "admin" | "super_admin";
 
 export type AuthProfile = {
     id: string;
@@ -27,15 +27,24 @@ const ROLE_PRIORITY: Record<AppRole, number> = {
     buyer: 10,
     seller: 20,
     admin: 80,
-    superadmin: 100,
+    super_admin: 100,
 };
 
-const VALID_ROLES = new Set<AppRole>(["buyer", "seller", "admin", "superadmin"]);
+const VALID_ROLES = new Set<AppRole>(["buyer", "seller", "admin", "super_admin"]);
+
+const ROLE_ALIASES: Record<string, AppRole> = {
+    superadmin: "super_admin",
+    super_admin: "super_admin",
+    manufacturer: "seller",
+    distributor: "seller",
+    both: "seller",
+};
 
 export function normalizeRole(value: unknown): AppRole | null {
     if (typeof value !== "string") return null;
-    if (!VALID_ROLES.has(value as AppRole)) return null;
-    return value as AppRole;
+    const normalized = ROLE_ALIASES[value] ?? value;
+    if (!VALID_ROLES.has(normalized as AppRole)) return null;
+    return normalized as AppRole;
 }
 
 export function hasRoleAtLeast(role: AppRole | null, requiredRole: AppRole) {
@@ -119,6 +128,19 @@ export async function hydrateAuthState(
         profile,
         role: profile.role,
     };
+}
+
+export function resolveAuthRole(params: {
+    profileRole?: unknown;
+    appMetadataRole?: unknown;
+    userMetadataRole?: unknown;
+}): AppRole {
+    return (
+        normalizeRole(params.profileRole) ??
+        normalizeRole(params.appMetadataRole) ??
+        normalizeRole(params.userMetadataRole) ??
+        "buyer"
+    );
 }
 
 export function getRoleFromJwtLikeClaims(claims: unknown): AppRole | null {

@@ -16,6 +16,8 @@ import {
   type User,
 } from "@supabase/supabase-js";
 import { useRouter } from "next/navigation";
+import { resolveAuthRole } from "@/lib/auth/profile-role";
+import { getHomePathForRole } from "@/lib/auth/role-routing";
 import { getPublicDevelopmentTrustMode } from "../../lib/marketplace/platform-settings";
 import { getSupabaseBrowserClient } from "../../lib/supabase/browser-client";
 
@@ -97,12 +99,12 @@ const EMPTY_IDENTITY: MarketplaceIdentity = {
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 function getDashboardHref(role: MarketplaceRole | null) {
-  if (role === "seller") return "/seller/dashboard";
-  if (role === "buyer") return "/buyer/dashboard";
-  if (role === "admin" || role === "super_admin") return "/admin";
-  if (role === "moderator") return "/ops";
-  if (role === "both") return "/dashboard";
-  return "/dashboard";
+  const resolved = resolveAuthRole({
+    profileRole: role,
+    appMetadataRole: role,
+    userMetadataRole: role,
+  });
+  return getHomePathForRole(resolved);
 }
 
 function fallbackProfileFromUser(user: User | null): MarketplaceProfile | null {
@@ -110,17 +112,10 @@ function fallbackProfileFromUser(user: User | null): MarketplaceProfile | null {
 
   const metadata = user.user_metadata ?? {};
   const appMeta = user.app_metadata ?? {};
-  const VALID_ROLES: MarketplaceRole[] = [
-    "buyer", "seller", "both", "admin", "super_admin", "moderator",
-    "supplier_success", "support_agent", "finance", "marketing",
-    "manufacturer", "distributor", "logistics",
-  ];
-  
-  // Migration 0007 sets role in app_metadata for secure roles like super_admin
-  const candidateRole = appMeta.role || metadata.role;
-  const role: MarketplaceRole = VALID_ROLES.includes(candidateRole)
-    ? candidateRole
-    : "buyer";
+  const role = resolveAuthRole({
+    appMetadataRole: appMeta.role,
+    userMetadataRole: metadata.role,
+  }) as MarketplaceRole;
 
   return {
     id: user.id,
@@ -167,8 +162,21 @@ async function loadMarketplaceIdentity(
       .maybeSingle(),
   ]);
 
+  const profileFromDb = profileResult.data as MarketplaceProfile | null;
+  const fallback = fallbackProfileFromUser(user);
+  const mergedProfile = profileFromDb
+    ? {
+        ...profileFromDb,
+        role: resolveAuthRole({
+          profileRole: profileFromDb.role,
+          appMetadataRole: user.app_metadata?.role,
+          userMetadataRole: user.user_metadata?.role,
+        }) as MarketplaceRole,
+      }
+    : fallback;
+
   return {
-    profile: (profileResult.data as MarketplaceProfile | null) ?? fallbackProfileFromUser(user),
+    profile: mergedProfile,
     company: (companyResult.data as MarketplaceCompany | null) ?? null,
     sellerProfile: (sellerResult.data as MarketplaceSellerProfile | null) ?? null,
     buyerProfile: (buyerResult.data as MarketplaceBuyerProfile | null) ?? null,

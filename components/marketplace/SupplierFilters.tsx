@@ -163,18 +163,14 @@ export function SupplierFilters({
                 </FilterGroup>
 
                 <FilterGroup title="Location">
-                    {cities.map((city) => {
-                        const cityParam = city.toLowerCase().replace(/\s+/g, "-");
-
-                        return (
-                            <CheckboxFilter
-                                key={city}
-                                label={city}
-                                checked={filters.cities?.includes(city) ?? false}
-                                onChange={() => toggleArrayValue("cities", cityParam)}
-                            />
-                        );
-                    })}
+                    {cities.map((city) => (
+                        <CheckboxFilter
+                            key={city}
+                            label={city}
+                            checked={filters.cities?.includes(city) ?? false}
+                            onChange={() => toggleArrayValue("cities", city)}
+                        />
+                    ))}
                 </FilterGroup>
 
                 <FilterGroup title="Trust">

@@ -1,10 +1,10 @@
 import type { AppRole } from "./profile-role";
 
 export const ROLE_HOME_PATH: Record<AppRole, string> = {
-    superadmin: "/admin",
-    admin: "/dashboard/admin",
-    seller: "/dashboard/seller",
-    buyer: "/dashboard/buyer",
+    super_admin: "/admin",
+    admin: "/admin",
+    seller: "/seller/dashboard",
+    buyer: "/buyer/dashboard",
 };
 
 export const PROTECTED_ROUTE_PREFIXES = [
@@ -20,7 +20,7 @@ export function getHomePathForRole(role: AppRole) {
 
 export function getRequiredRoleForPath(pathname: string): AppRole | null {
     if (pathname === "/admin" || pathname.startsWith("/admin/")) {
-        return "superadmin";
+        return "super_admin";
     }
 
     if (
@@ -31,6 +31,8 @@ export function getRequiredRoleForPath(pathname: string): AppRole | null {
     }
 
     if (
+        pathname === "/seller" ||
+        pathname.startsWith("/seller/") ||
         pathname === "/dashboard/seller" ||
         pathname.startsWith("/dashboard/seller/")
     ) {
@@ -38,6 +40,8 @@ export function getRequiredRoleForPath(pathname: string): AppRole | null {
     }
 
     if (
+        pathname === "/buyer" ||
+        pathname.startsWith("/buyer/") ||
         pathname === "/dashboard/buyer" ||
         pathname.startsWith("/dashboard/buyer/")
     ) {
@@ -51,7 +55,7 @@ const ROLE_LEVEL: Record<AppRole, number> = {
     buyer: 10,
     seller: 20,
     admin: 80,
-    superadmin: 100,
+    super_admin: 100,
 };
 
 export function canAccessPath(role: AppRole | null, pathname: string) {
