@@ -178,35 +178,93 @@ create trigger on_auth_user_created_create_profile
 after insert on auth.users
 for each row execute function public.handle_new_user_profile();
 
-insert into public.profiles (
-  id,
-  email,
-  full_name,
-  phone,
-  role,
-  profile_status,
-  trust_level,
-  onboarding_step,
-  verification_status,
-  avatar_url
-)
-select
-  users.id,
-  users.email,
-  coalesce(users.raw_user_meta_data->>'full_name', users.raw_user_meta_data->>'name'),
-  coalesce(users.phone, users.raw_user_meta_data->>'phone'),
-  case
-    when users.raw_user_meta_data->>'role' in ('buyer', 'seller', 'both', 'admin', 'supplier_success')
-      then (users.raw_user_meta_data->>'role')::public.mh_user_role
-    else 'buyer'::public.mh_user_role
-  end,
-  'incomplete',
-  0,
-  1,
-  case when users.email_confirmed_at is not null then 'pending'::public.mh_verification_status else 'draft'::public.mh_verification_status end,
-  users.raw_user_meta_data->>'avatar_url'
-from auth.users as users
-on conflict (id) do nothing;
+-- Backfill auth users into profiles.
+-- Remote DBs may already use profiles.role = app_role (marketplace foundation) or mh_user_role (legacy).
+do $$
+declare
+  profile_role_udt text;
+begin
+  select c.udt_name
+  into profile_role_udt
+  from information_schema.columns c
+  where c.table_schema = 'public'
+    and c.table_name = 'profiles'
+    and c.column_name = 'role';
+
+  if profile_role_udt = 'app_role' then
+    insert into public.profiles (
+      id,
+      email,
+      full_name,
+      phone,
+      role,
+      profile_status,
+      trust_level,
+      onboarding_step,
+      verification_status,
+      avatar_url
+    )
+    select
+      users.id,
+      users.email,
+      coalesce(users.raw_user_meta_data->>'full_name', users.raw_user_meta_data->>'name'),
+      coalesce(users.phone, users.raw_user_meta_data->>'phone'),
+      case
+        when users.raw_user_meta_data->>'role' in ('super_admin', 'superadmin')
+          then 'superadmin'::public.app_role
+        when users.raw_user_meta_data->>'role' in ('admin')
+          then 'admin'::public.app_role
+        when users.raw_user_meta_data->>'role' in ('seller', 'both', 'manufacturer', 'distributor')
+          then 'seller'::public.app_role
+        else 'buyer'::public.app_role
+      end,
+      'incomplete',
+      0,
+      1,
+      case
+        when users.email_confirmed_at is not null then 'pending'::public.mh_verification_status
+        else 'draft'::public.mh_verification_status
+      end,
+      users.raw_user_meta_data->>'avatar_url'
+    from auth.users as users
+    on conflict (id) do nothing;
+  elsif profile_role_udt = 'mh_user_role' then
+    insert into public.profiles (
+      id,
+      email,
+      full_name,
+      phone,
+      role,
+      profile_status,
+      trust_level,
+      onboarding_step,
+      verification_status,
+      avatar_url
+    )
+    select
+      users.id,
+      users.email,
+      coalesce(users.raw_user_meta_data->>'full_name', users.raw_user_meta_data->>'name'),
+      coalesce(users.phone, users.raw_user_meta_data->>'phone'),
+      case
+        when users.raw_user_meta_data->>'role' in ('buyer', 'seller', 'both', 'admin', 'supplier_success')
+          then (users.raw_user_meta_data->>'role')::public.mh_user_role
+        else 'buyer'::public.mh_user_role
+      end,
+      'incomplete',
+      0,
+      1,
+      case
+        when users.email_confirmed_at is not null then 'pending'::public.mh_verification_status
+        else 'draft'::public.mh_verification_status
+      end,
+      users.raw_user_meta_data->>'avatar_url'
+    from auth.users as users
+    on conflict (id) do nothing;
+  else
+    raise notice 'Skipping profile backfill: profiles.role type is %', coalesce(profile_role_udt, 'missing');
+  end if;
+end $$;
 
 create table if not exists public.companies (
   id uuid primary key default gen_random_uuid(),
@@ -261,21 +319,36 @@ create index if not exists taxonomy_parent_id_idx on public.taxonomy(parent_id);
 create index if not exists taxonomy_active_sort_idx on public.taxonomy(is_active, sort_order, name);
 create index if not exists taxonomy_name_trgm_idx on public.taxonomy using gin (name gin_trgm_ops);
 
-create or replace view public.industries as
-select
-  id,
-  name,
-  slug,
-  icon,
-  description,
-  is_active,
-  sort_order,
-  parent_id as parent_industry_id,
-  created_at,
-  updated_at
-from public.taxonomy
-where type = 'industry'
-  and deleted_at is null;
+do $$
+begin
+  if exists (
+    select 1
+    from information_schema.tables
+    where table_schema = 'public'
+      and table_name = 'industries'
+      and table_type = 'BASE TABLE'
+  ) then
+    raise notice 'Skipping industries view: normalized industries table already exists.';
+  else
+    execute $view$
+      create or replace view public.industries as
+      select
+        id,
+        name,
+        slug,
+        icon,
+        description,
+        is_active,
+        sort_order,
+        parent_id as parent_industry_id,
+        created_at,
+        updated_at
+      from public.taxonomy
+      where type = 'industry'
+        and deleted_at is null
+    $view$;
+  end if;
+end $$;
 
 create table if not exists public.countries (
   id uuid primary key default gen_random_uuid(),

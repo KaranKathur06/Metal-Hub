@@ -75,7 +75,7 @@ export default function ListingCard({
     const urg = urgencyConfig(inquiry.urgency);
 
     return (
-      <Link href={`/marketplace/inquiry/${inquiry.id}`} className="block">
+      <Link href={`/rfq/${(inquiry as { slug?: string }).slug || inquiry.id}`} className="block">
         <article className="group relative h-full overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_1px_3px_rgba(15,23,42,0.04)] transition-all duration-300 hover:-translate-y-1 hover:border-blue-200 hover:shadow-[0_20px_40px_rgba(15,23,42,0.1)]">
           {/* Top accent bar */}
           <div className={`h-1 w-full ${inquiry.urgency === 'HIGH' ? 'bg-gradient-to-r from-red-500 to-orange-400' : inquiry.urgency === 'MEDIUM' ? 'bg-gradient-to-r from-amber-400 to-yellow-300' : 'bg-gradient-to-r from-emerald-400 to-teal-300'}`} />

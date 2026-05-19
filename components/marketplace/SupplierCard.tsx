@@ -33,7 +33,7 @@ export function SupplierCard({ supplier }: SupplierCardProps) {
                 <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
                         <Link
-                            href={`/marketplace/suppliers/${supplier.slug}`}
+                            href={`/suppliers/${supplier.slug}`}
                             className="text-base font-semibold text-zinc-950 hover:text-zinc-700"
                         >
                             {supplier.company_name}
@@ -136,7 +136,7 @@ export function SupplierCard({ supplier }: SupplierCardProps) {
 
                 <div className="flex gap-2">
                     <Link
-                        href={`/marketplace/suppliers/${supplier.slug}`}
+                        href={`/suppliers/${supplier.slug}`}
                         className="inline-flex h-9 items-center justify-center rounded-md border border-zinc-300 px-3 text-sm font-medium text-zinc-800 hover:bg-zinc-50"
                     >
                         View Profile

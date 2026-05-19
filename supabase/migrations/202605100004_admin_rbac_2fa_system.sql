@@ -105,19 +105,23 @@ ALTER TABLE admin_audit_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE rate_limits ENABLE ROW LEVEL SECURITY;
 
 -- OTP: Users can only read their own OTPs
+DROP POLICY IF EXISTS otp_user_read ON otp_verifications;
 CREATE POLICY otp_user_read ON otp_verifications
   FOR SELECT USING (auth.uid() = user_id);
 
 -- Admin sessions: Users can only read their own sessions
+DROP POLICY IF EXISTS admin_session_user_read ON admin_sessions;
 CREATE POLICY admin_session_user_read ON admin_sessions
   FOR SELECT USING (auth.uid() = user_id);
 
 -- Audit logs: Only admins can read (enforced at API level)
 -- Service role has full access for writes
+DROP POLICY IF EXISTS audit_service_write ON admin_audit_logs;
 CREATE POLICY audit_service_write ON admin_audit_logs
   FOR INSERT WITH CHECK (true);
 
 -- Rate limits: Service role only
+DROP POLICY IF EXISTS rate_limit_service ON rate_limits;
 CREATE POLICY rate_limit_service ON rate_limits
   FOR ALL USING (true);
 

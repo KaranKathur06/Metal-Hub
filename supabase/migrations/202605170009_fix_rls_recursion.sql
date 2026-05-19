@@ -6,7 +6,7 @@ CREATE POLICY profiles_admin_all ON public.profiles
     auth.uid() = id
     OR (auth.jwt()->>'role' = 'service_role')
     OR (
-      (SELECT role FROM public.profiles WHERE id = auth.uid()) IN ('admin', 'super_admin')
+      (SELECT role::text FROM public.profiles WHERE id = auth.uid()) IN ('admin', 'super_admin', 'superadmin')
     )
   );
 

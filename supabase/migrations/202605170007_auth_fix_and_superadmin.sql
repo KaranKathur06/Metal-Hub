@@ -42,7 +42,7 @@ BEGIN
   END;
 
   -- Prevent non-admin signup from claiming admin roles
-  IF valid_role IN ('admin', 'super_admin', 'moderator', 'support_agent', 'supplier_success', 'finance', 'marketing') THEN
+  IF valid_role::text IN ('admin', 'super_admin', 'moderator', 'support_agent', 'supplier_success', 'finance', 'marketing') THEN
     valid_role := 'buyer'::public.mh_user_role;
   END IF;
 
@@ -124,7 +124,7 @@ CREATE POLICY rfqs_authenticated_update ON public.rfqs
       WHERE bp.id = rfqs.buyer_profile_id AND bp.profile_id = auth.uid()
     )
     OR EXISTS (
-      SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('admin', 'super_admin', 'moderator')
+      SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role::text IN ('admin', 'super_admin', 'moderator')
     )
   );
 
@@ -142,13 +142,23 @@ BEGIN
   LIMIT 1;
 
   IF target_user_id IS NOT NULL THEN
-    -- Update profile role to super_admin
+    -- Update profile role (supports both mh_user_role and app_role columns)
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'profiles' AND column_name = 'role' AND udt_name = 'app_role'
+  ) THEN
     UPDATE public.profiles
-    SET role = 'super_admin',
+    SET role = 'superadmin'::public.app_role,
+        updated_at = now()
+    WHERE id = target_user_id;
+  ELSE
+    UPDATE public.profiles
+    SET role = 'super_admin'::public.mh_user_role,
         verification_status = 'approved',
         trust_level = 100,
         updated_at = now()
     WHERE id = target_user_id;
+  END IF;
 
     -- Update auth metadata
     UPDATE auth.users
@@ -177,9 +187,21 @@ BEGIN
     RAISE EXCEPTION 'User with email % not found', target_email;
   END IF;
   
-  UPDATE public.profiles
-  SET role = 'super_admin', verification_status = 'approved', trust_level = 100, updated_at = now()
-  WHERE id = target_id;
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'profiles' AND column_name = 'role' AND udt_name = 'app_role'
+  ) THEN
+    UPDATE public.profiles
+    SET role = 'superadmin'::public.app_role, updated_at = now()
+    WHERE id = target_id;
+  ELSE
+    UPDATE public.profiles
+    SET role = 'super_admin'::public.mh_user_role,
+        verification_status = 'approved',
+        trust_level = 100,
+        updated_at = now()
+    WHERE id = target_id;
+  END IF;
   
   UPDATE auth.users
   SET raw_user_meta_data = COALESCE(raw_user_meta_data, '{}'::jsonb) || '{"role": "super_admin"}'::jsonb,

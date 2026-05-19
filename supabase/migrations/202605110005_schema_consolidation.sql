@@ -118,7 +118,7 @@ CREATE POLICY company_settings_access ON public.company_settings
     )
     OR EXISTS (
       SELECT 1 FROM public.profiles
-      WHERE id = auth.uid() AND role IN ('admin', 'super_admin')
+      WHERE id = auth.uid() AND role::text IN ('admin', 'super_admin', 'superadmin')
     )
   );
 
@@ -195,7 +195,7 @@ CREATE POLICY listing_specs_write ON public.listing_specifications
       WHERE l.id = listing_specifications.listing_id AND sp.profile_id = auth.uid()
     )
     OR EXISTS (
-      SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('admin', 'super_admin')
+      SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role::text IN ('admin', 'super_admin', 'superadmin')
     )
   );
 
@@ -207,7 +207,7 @@ CREATE POLICY listing_pricing_write ON public.listing_pricing_tiers
       WHERE l.id = listing_pricing_tiers.listing_id AND sp.profile_id = auth.uid()
     )
     OR EXISTS (
-      SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('admin', 'super_admin')
+      SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role::text IN ('admin', 'super_admin', 'superadmin')
     )
   );
 
@@ -247,7 +247,7 @@ CREATE POLICY uploads_own_read ON public.uploads
   FOR SELECT USING (
     auth.uid() = user_id
     OR EXISTS (
-      SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('admin', 'super_admin', 'moderator')
+      SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role::text IN ('admin', 'super_admin', 'superadmin', 'moderator')
     )
   );
 
@@ -258,7 +258,7 @@ CREATE POLICY uploads_own_update ON public.uploads
   FOR UPDATE USING (
     auth.uid() = user_id
     OR EXISTS (
-      SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('admin', 'super_admin', 'moderator')
+      SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role::text IN ('admin', 'super_admin', 'superadmin', 'moderator')
     )
   );
 
@@ -266,7 +266,7 @@ CREATE POLICY uploads_own_delete ON public.uploads
   FOR DELETE USING (
     auth.uid() = user_id
     OR EXISTS (
-      SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('admin', 'super_admin')
+      SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role::text IN ('admin', 'super_admin', 'superadmin')
     )
   );
 
@@ -319,7 +319,7 @@ CREATE POLICY leads_admin_access ON public.leads
   FOR ALL USING (
     EXISTS (
       SELECT 1 FROM public.profiles
-      WHERE id = auth.uid() AND role IN ('admin', 'super_admin', 'moderator', 'support_agent', 'supplier_success')
+      WHERE id = auth.uid() AND role::text IN ('admin', 'super_admin', 'superadmin', 'moderator', 'support_agent', 'supplier_success')
     )
   );
 
@@ -327,7 +327,7 @@ CREATE POLICY lead_activities_admin_access ON public.lead_activities
   FOR ALL USING (
     EXISTS (
       SELECT 1 FROM public.profiles
-      WHERE id = auth.uid() AND role IN ('admin', 'super_admin', 'moderator', 'support_agent', 'supplier_success')
+      WHERE id = auth.uid() AND role::text IN ('admin', 'super_admin', 'superadmin', 'moderator', 'support_agent', 'supplier_success')
     )
   );
 
@@ -356,7 +356,7 @@ CREATE POLICY payments_own ON public.payments
   FOR SELECT USING (
     auth.uid() = user_id
     OR EXISTS (
-      SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('admin', 'super_admin', 'finance')
+      SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role::text IN ('admin', 'super_admin', 'superadmin', 'finance')
     )
   );
 
@@ -382,7 +382,7 @@ CREATE POLICY memberships_own ON public.memberships
   FOR SELECT USING (
     auth.uid() = user_id
     OR EXISTS (
-      SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('admin', 'super_admin', 'finance')
+      SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role::text IN ('admin', 'super_admin', 'superadmin', 'finance')
     )
   );
 
@@ -412,7 +412,7 @@ CREATE POLICY banners_public_read ON public.banners
 CREATE POLICY banners_admin_write ON public.banners
   FOR ALL USING (
     EXISTS (
-      SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('admin', 'super_admin', 'marketing')
+      SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role::text IN ('admin', 'super_admin', 'superadmin', 'marketing')
     )
   );
 
