@@ -87,7 +87,10 @@ export async function middleware(request: NextRequest) {
   // ── Unauthenticated → protected route: redirect to login ──
   if (isProtected && !user) {
     const loginUrl = new URL("/login", request.url)
-    loginUrl.searchParams.set("redirect", pathname)
+    // Avoid login?redirect=/admin → verify trap after sign-out
+    if (!pathname.startsWith("/admin/verify")) {
+      loginUrl.searchParams.set("redirect", pathname)
+    }
     return NextResponse.redirect(loginUrl)
   }
 

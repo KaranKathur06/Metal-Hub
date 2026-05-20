@@ -402,6 +402,11 @@ export function AuthProvider({ children, initialAuth = null }: AuthProviderProps
 
     isSigningOut.current = true;
 
+    const onAdminRoute =
+      typeof window !== "undefined" &&
+      (window.location.pathname.startsWith("/admin") ||
+        window.location.pathname.startsWith("/ops"));
+
     try {
       setSession(null);
       setUser(null);
@@ -409,19 +414,30 @@ export function AuthProvider({ children, initialAuth = null }: AuthProviderProps
       setLoading(false);
       setRoleLoading(false);
 
-      await supabase.auth.signOut();
-      router.push("/");
-      router.refresh();
+      try {
+        await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
+      } catch {
+        // continue — client signOut still runs
+      }
+
+      await supabase.auth.signOut({ scope: "global" });
+
+      // Hard navigation clears stale SSR bootstrap + admin verify loop
+      if (onAdminRoute) {
+        window.location.replace("/login?signedOut=1");
+      } else {
+        window.location.replace("/");
+      }
     } catch (err) {
       console.error("[MetalHub] Sign out error:", err);
       setSession(null);
       setUser(null);
       setIdentity(EMPTY_IDENTITY);
-      router.push("/");
+      window.location.replace(onAdminRoute ? "/login?signedOut=1" : "/");
     } finally {
       isSigningOut.current = false;
     }
-  }, [supabase, router]);
+  }, [supabase]);
 
   const value = useMemo<AuthContextValue>(() => {
     const role = identity.profile?.role ?? null;

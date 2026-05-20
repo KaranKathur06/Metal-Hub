@@ -29,7 +29,7 @@ type VerifyStep = 'request' | 'verify' | 'verified';
 function AdminVerifyForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { isAuthenticated, loading: authLoading, profile, role } = useAuth();
+  const { isAuthenticated, loading: authLoading, profile, role, signOut } = useAuth();
 
   const [step, setStep] = useState<VerifyStep>('request');
   const [otp, setOtp] = useState('');
@@ -62,12 +62,12 @@ function AdminVerifyForm() {
     return () => clearInterval(timer);
   }, [expiresIn]);
 
-  // ── Role Guard ──
+  // ── Auth guard: do not send signed-out users to login?redirect=/admin (verify loop) ──
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
-      router.push(`/login?redirect=${encodeURIComponent(redirectPath)}`);
+      window.location.replace("/login");
     }
-  }, [authLoading, isAuthenticated, redirectPath, router]);
+  }, [authLoading, isAuthenticated]);
 
   const isAdmin = canRequestAdminOtp(role ?? '');
 
@@ -252,6 +252,15 @@ function AdminVerifyForm() {
                   <Mail className="mr-2 h-4 w-4" />
                 )}
                 Send Verification Code
+              </Button>
+
+              <Button
+                type="button"
+                variant="ghost"
+                className="w-full text-sm text-slate-600"
+                onClick={() => void signOut()}
+              >
+                Sign out and use a different account
               </Button>
             </div>
           )}
