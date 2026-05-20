@@ -7,6 +7,7 @@
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { isSuperAdminRole, normalizeStoredRole } from '@/lib/auth/rbac';
 
 /**
  * Check if a user has a specific permission via their role.
@@ -33,14 +34,14 @@ export async function hasPermission(
 
   if (!profile?.role) return false;
 
-  // Super admin has all permissions
-  if (profile.role === 'super_admin') return true;
+  // Super admin has all permissions (includes legacy superadmin alias)
+  if (isSuperAdminRole(profile.role)) return true;
 
   // 2. Check role_permissions join
   const { data } = await supabase
     .from('role_permissions')
     .select('permission_id, permissions!inner(code)')
-    .eq('role', profile.role)
+    .eq('role', normalizeStoredRole(profile.role))
     .eq('permissions.code', permissionCode)
     .maybeSingle();
 
@@ -71,7 +72,7 @@ export async function hasPermissions(
   if (!profile?.role) return result;
 
   // Super admin has all permissions
-  if (profile.role === 'super_admin') {
+  if (isSuperAdminRole(profile.role)) {
     for (const code of permissionCodes) {
       result[code] = true;
     }
@@ -82,7 +83,7 @@ export async function hasPermissions(
   const { data: grants } = await supabase
     .from('role_permissions')
     .select('permissions!inner(code)')
-    .eq('role', profile.role)
+    .eq('role', normalizeStoredRole(profile.role))
     .in('permissions.code', permissionCodes);
 
   if (grants) {
@@ -129,7 +130,7 @@ export async function getUserPermissions(
   if (!profile?.role) return [];
 
   // Super admin: return all
-  if (profile.role === 'super_admin') {
+  if (isSuperAdminRole(profile.role)) {
     const { data: allPerms } = await supabase
       .from('permissions')
       .select('code');
@@ -139,7 +140,7 @@ export async function getUserPermissions(
   const { data: grants } = await supabase
     .from('role_permissions')
     .select('permissions!inner(code)')
-    .eq('role', profile.role);
+    .eq('role', normalizeStoredRole(profile.role));
 
   return (grants || []).map((g: any) => g.permissions?.code).filter(Boolean);
 }

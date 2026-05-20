@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import crypto from "crypto";
+import { canRequestAdminOtp, resolveEffectiveRole } from "@/lib/auth/rbac";
+import { authLog } from "@/lib/auth/auth-logger";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -69,13 +71,19 @@ export async function POST(req: NextRequest) {
       .eq("id", user.id)
       .maybeSingle();
 
-    const role = profile?.role || user.user_metadata?.role;
-    if (role !== "admin" && role !== "super_admin") {
-      // Log unauthorized admin access attempt
+    const role = resolveEffectiveRole({
+      profileRole: profile?.role,
+      appMetadataRole: user.app_metadata?.role,
+      userMetadataRole: user.user_metadata?.role,
+    });
+
+    authLog("admin_otp_send", "role check", { userId: user.id, role, rawProfileRole: profile?.role });
+
+    if (!canRequestAdminOtp(role)) {
       await logAuditEvent(supabase, {
         userId: user.id,
         action: "ADMIN_OTP_UNAUTHORIZED_ATTEMPT",
-        details: { role, email: user.email },
+        details: { role, rawProfileRole: profile?.role, email: user.email },
         ip: getClientIp(req),
         userAgent: req.headers.get("user-agent") || undefined,
         severity: "warning",

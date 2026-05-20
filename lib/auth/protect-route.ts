@@ -25,6 +25,13 @@
 import { createSupabaseServerClient } from '@/lib/supabase/server-client';
 import { hasPermission } from '@/lib/auth/permissions';
 import { checkRateLimit, type RateLimitResult } from '@/lib/auth/rate-limiter';
+import {
+  isSuperAdminRole,
+  normalizeStoredRole,
+  resolveEffectiveRole,
+  roleMatchesAllowed,
+} from '@/lib/auth/rbac';
+import { authLog, authWarn } from '@/lib/auth/auth-logger';
 import type { SupabaseClient, User } from '@supabase/supabase-js';
 
 export type ProtectOptions = {
@@ -105,26 +112,44 @@ export async function protectApiRoute(
     .eq('id', user.id)
     .maybeSingle();
 
-  const role = profile?.role || 'buyer';
+  const rawRole = profile?.role ?? 'buyer';
+  const role = resolveEffectiveRole({
+    profileRole: rawRole,
+    appMetadataRole: user.app_metadata?.role,
+    userMetadataRole: user.user_metadata?.role,
+  });
 
-  // ── 4. Role check ──
+  authLog('protectApiRoute', 'role resolved', {
+    userId: user.id,
+    rawRole,
+    role,
+    path: new URL(request.url).pathname,
+  });
+
+  // ── 4. Role check (super_admin bypasses role lists) ──
   if (options.requiredRoles && options.requiredRoles.length > 0) {
-    if (!options.requiredRoles.includes(role)) {
+    if (!isSuperAdminRole(role) && !roleMatchesAllowed(role, options.requiredRoles)) {
+      authWarn('protectApiRoute', 'role denied', {
+        userId: user.id,
+        role,
+        required: options.requiredRoles,
+      });
       return {
         error: {
           code: 'FORBIDDEN',
-          message: `Role '${role}' is not authorized for this action`,
+          message: `Role '${normalizeStoredRole(rawRole)}' is not authorized for this action`,
         },
         status: 403,
       };
     }
   }
 
-  // ── 5. Permission check ──
-  if (options.permissions && options.permissions.length > 0) {
+  // ── 5. Permission check (super_admin bypasses permission matrix) ──
+  if (options.permissions && options.permissions.length > 0 && !isSuperAdminRole(role)) {
     for (const permCode of options.permissions) {
       const granted = await hasPermission(supabase, user.id, permCode);
       if (!granted) {
+        authWarn('protectApiRoute', 'permission denied', { userId: user.id, role, permCode });
         return {
           error: {
             code: 'FORBIDDEN',

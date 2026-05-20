@@ -6,12 +6,18 @@ import { createServerClient } from "@supabase/ssr"
 // These are inlined here because middleware runs in Edge Runtime
 // and cannot import from lib/ modules that use Node.js APIs.
 const ADMIN_ROLE_SET = new Set([
-  'super_admin', 'admin', 'moderator', 'support_agent',
+  'super_admin', 'superadmin', 'admin', 'moderator', 'support_agent',
   'supplier_success', 'finance', 'marketing',
 ])
 const OPS_ROLE_SET = new Set([
-  'super_admin', 'admin', 'moderator', 'support_agent', 'supplier_success',
+  'super_admin', 'superadmin', 'admin', 'moderator', 'support_agent', 'supplier_success',
 ])
+
+function normalizeEdgeRole(role: unknown): string {
+  if (typeof role !== 'string' || !role) return ''
+  if (role === 'superadmin') return 'super_admin'
+  return role
+}
 const REQUIRES_2FA_SET = new Set(['super_admin', 'admin'])
 
 // ═══════════════════════════════════════════════════════
@@ -89,9 +95,9 @@ export async function middleware(request: NextRequest) {
   // Check role from user_metadata first (fast check in middleware)
   // Deep DB-level role check happens in API routes and server components
   if (isAdminRoute && user) {
-    const role = user.user_metadata?.role
-    const profileRole = user.app_metadata?.role // Supabase app_metadata is more secure
-    const effectiveRole = profileRole || role || ''
+    const effectiveRole = normalizeEdgeRole(
+      user.app_metadata?.role ?? user.user_metadata?.role ?? '',
+    )
 
     // Check if the role is allowed for admin/ops routes
     const isAdminUser = pathname.startsWith("/ops")
@@ -140,7 +146,7 @@ export async function middleware(request: NextRequest) {
 
   // ── Authenticated → auth route: redirect to dashboard ──
   if (isAuthRoute && user) {
-    const role = user.app_metadata?.role || user.user_metadata?.role || ''
+    const role = normalizeEdgeRole(user.app_metadata?.role ?? user.user_metadata?.role ?? '')
     let dashboardUrl = "/dashboard"
     if (role === "seller" || role === "manufacturer" || role === "distributor") dashboardUrl = "/seller/dashboard"
     else if (role === "buyer") dashboardUrl = "/buyer/dashboard"

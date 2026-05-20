@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { isSuperAdminRole, roleMatchesAllowed, resolveEffectiveRole } from "@/lib/auth/rbac";
 
 /**
  * Create a Supabase server client for use in:
@@ -57,7 +58,7 @@ export async function getServerUser() {
 export async function validateUserRole(
   supabase: SupabaseClient,
   userId: string,
-  allowedRoles: string[]
+  allowedRoles: string[],
 ): Promise<{ valid: boolean; role: string | null }> {
   const { data: profile } = await supabase
     .from("profiles")
@@ -65,10 +66,12 @@ export async function validateUserRole(
     .eq("id", userId)
     .maybeSingle();
 
-  const role = profile?.role ?? null;
+  const role = profile?.role
+    ? resolveEffectiveRole({ profileRole: profile.role })
+    : null;
 
   return {
-    valid: role ? allowedRoles.includes(role) : false,
+    valid: role ? roleMatchesAllowed(role, allowedRoles) || isSuperAdminRole(role) : false,
     role,
   };
 }

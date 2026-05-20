@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import crypto from "crypto";
+import { canRequestAdminOtp, resolveEffectiveRole } from "@/lib/auth/rbac";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -61,8 +62,12 @@ export async function POST(req: NextRequest) {
       .eq("id", user.id)
       .maybeSingle();
 
-    const role = profile?.role || user.user_metadata?.role;
-    if (role !== "admin" && role !== "super_admin") {
+    const role = resolveEffectiveRole({
+      profileRole: profile?.role,
+      appMetadataRole: user.app_metadata?.role,
+      userMetadataRole: user.user_metadata?.role,
+    });
+    if (!canRequestAdminOtp(role)) {
       return NextResponse.json(
         { error: "Insufficient permissions" },
         { status: 403 }

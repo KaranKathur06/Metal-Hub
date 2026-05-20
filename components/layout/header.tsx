@@ -162,9 +162,14 @@ export function Header() {
 
   const { data: taxonomy, loading: taxLoading } = useTaxonomyRegistry();
   const {
-    loading: authLoading, roleLoading, isAuthenticated, profile, role,
+    loading: authLoading, roleLoading, isAuthenticated, profile, role, user,
     dashboardHref, onboardingIncomplete, signOut,
   } = useAuth();
+
+  /** Show guest chrome immediately unless we're still resolving first paint with no hint */
+  const showGuestChrome = !isAuthenticated && !authLoading;
+  const showAuthedChrome = isAuthenticated;
+  const showAuthSkeleton = authLoading && !isAuthenticated && !user;
 
   const profileRole: AppRole = resolveAuthRole({
     profileRole: role,
@@ -320,9 +325,9 @@ export function Header() {
             {/* Right: Auth */}
             <div className="flex items-center gap-2">
               <div className="hidden items-center gap-1.5 lg:flex">
-                {authLoading || roleLoading ? (
-                  <div className="h-9 w-32 animate-pulse rounded-md bg-slate-100" />
-                ) : isAuthenticated ? (
+                {showAuthSkeleton ? (
+                  <div className="h-9 w-32 animate-pulse rounded-md bg-slate-100" aria-hidden="true" />
+                ) : showAuthedChrome ? (
                   <>
                     {onboardingIncomplete && (
                       <Link href={getOnboardingHref(role)} className="flex items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-xs font-semibold text-amber-700 hover:bg-amber-100">
@@ -339,21 +344,27 @@ export function Header() {
                       </Button>
                     </Link>
 
-                    <ProfileDropdown
-                      user={{
-                        email: profile?.email ?? null,
-                        fullName: profile?.full_name,
-                        role: profileRole,
-                      }}
-                      onSignOut={signOut}
-                    />
+                    {roleLoading && !profile?.full_name ? (
+                      <div className="h-9 w-9 animate-pulse rounded-full bg-slate-100" aria-hidden="true" />
+                    ) : (
+                      <ProfileDropdown
+                        user={{
+                          email: profile?.email ?? null,
+                          fullName: profile?.full_name,
+                          role: profileRole,
+                        }}
+                        onSignOut={signOut}
+                      />
+                    )}
                   </>
-                ) : (
+                ) : showGuestChrome ? (
                   <>
                     <Link href="/login"><Button variant="ghost" size="sm" className="font-semibold text-slate-600 hover:text-slate-900">Login</Button></Link>
                     <Link href="/register"><Button variant="outline" size="sm" className="bg-white font-semibold">Register</Button></Link>
                     <Link href="/post-requirement"><Button size="sm" className="ml-1 border-none bg-gradient-to-br from-[#1e3a8a] to-[#3b82f6] font-bold text-white shadow-[0_4px_14px_rgba(59,130,246,0.25)] hover:-translate-y-0.5">Post Requirement</Button></Link>
                   </>
+                ) : (
+                  <div className="h-9 w-24 animate-pulse rounded-md bg-slate-100" aria-hidden="true" />
                 )}
               </div>
 

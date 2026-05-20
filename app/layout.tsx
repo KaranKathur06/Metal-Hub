@@ -4,6 +4,7 @@ import "./globals.css"
 import { Header } from "@/components/layout/header"
 import { Footer } from "@/components/layout/footer"
 import { MarketplaceProviders } from "@/components/providers/MarketplaceProviders"
+import { getServerAuthBootstrap } from "@/lib/auth/bootstrap-server-auth"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -13,15 +14,17 @@ export const metadata: Metadata = {
   keywords: "metal marketplace, B2B industrial procurement, metal suppliers India, steel buyers, industrial sourcing",
 }
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
+  const initialAuth = await getServerAuthBootstrap()
+
   return (
     <html lang="en">
       <body className={inter.className}>
-        <MarketplaceProviders>
+        <MarketplaceProviders initialAuth={initialAuth}>
           <Header />
           <main className="min-h-screen">{children}</main>
           <Footer />

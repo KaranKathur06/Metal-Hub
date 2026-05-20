@@ -1,4 +1,5 @@
 import type { SupabaseClient, User } from "@supabase/supabase-js";
+import { normalizeStoredRole, resolveEffectiveRole } from "@/lib/auth/rbac";
 
 export type AppRole = "buyer" | "seller" | "admin" | "super_admin";
 
@@ -42,7 +43,7 @@ const ROLE_ALIASES: Record<string, AppRole> = {
 
 export function normalizeRole(value: unknown): AppRole | null {
     if (typeof value !== "string") return null;
-    const normalized = ROLE_ALIASES[value] ?? value;
+    const normalized = normalizeStoredRole(value);
     if (!VALID_ROLES.has(normalized as AppRole)) return null;
     return normalized as AppRole;
 }
@@ -135,12 +136,8 @@ export function resolveAuthRole(params: {
     appMetadataRole?: unknown;
     userMetadataRole?: unknown;
 }): AppRole {
-    return (
-        normalizeRole(params.profileRole) ??
-        normalizeRole(params.appMetadataRole) ??
-        normalizeRole(params.userMetadataRole) ??
-        "buyer"
-    );
+    const resolved = resolveEffectiveRole(params);
+    return normalizeRole(resolved) ?? "buyer";
 }
 
 export function getRoleFromJwtLikeClaims(claims: unknown): AppRole | null {
