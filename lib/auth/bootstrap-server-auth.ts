@@ -1,6 +1,8 @@
+import { cookies } from "next/headers";
 import { createSupabaseServerClient } from "@/lib/supabase/server-client";
 import { resolveEffectiveRole } from "@/lib/auth/rbac";
 import { authLog } from "@/lib/auth/auth-logger";
+import { AUTH_COOKIES } from "@/lib/auth/session-lifecycle";
 
 export type ServerAuthBootstrapPayload = {
   userId: string;
@@ -16,6 +18,12 @@ export type ServerAuthBootstrap = ServerAuthBootstrapPayload | null;
  * Avoids blocking the full 4-table identity load in the root layout.
  */
 export async function getServerAuthBootstrap(): Promise<ServerAuthBootstrap> {
+  const cookieStore = cookies();
+  if (cookieStore.get(AUTH_COOKIES.logoutInProgress)?.value === "1") {
+    authLog("bootstrap", "skipped — logout in progress");
+    return null;
+  }
+
   const supabase = createSupabaseServerClient();
   if (!supabase) return null;
 

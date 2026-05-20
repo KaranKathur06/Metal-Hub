@@ -163,13 +163,15 @@ export function Header() {
   const { data: taxonomy, loading: taxLoading } = useTaxonomyRegistry();
   const {
     loading: authLoading, roleLoading, isAuthenticated, profile, role, user,
-    dashboardHref, onboardingIncomplete, signOut,
+    dashboardHref, onboardingIncomplete, signOut, isSigningOut, sessionStatus,
   } = useAuth();
 
-  /** Show guest chrome immediately unless we're still resolving first paint with no hint */
-  const showGuestChrome = !isAuthenticated && !authLoading;
-  const showAuthedChrome = isAuthenticated;
-  const showAuthSkeleton = authLoading && !isAuthenticated && !user;
+  const showGuestChrome = !isAuthenticated && !authLoading && !isSigningOut;
+  const showAuthedChrome = isAuthenticated && !isSigningOut;
+  const showAuthSkeleton =
+    (authLoading || sessionStatus === "unknown" || isSigningOut) &&
+    !isAuthenticated &&
+    !user;
 
   const profileRole: AppRole = resolveAuthRole({
     profileRole: role,

@@ -29,7 +29,15 @@ type VerifyStep = 'request' | 'verify' | 'verified';
 function AdminVerifyForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { isAuthenticated, loading: authLoading, profile, role, signOut } = useAuth();
+  const {
+    isAuthenticated,
+    loading: authLoading,
+    profile,
+    role,
+    signOut,
+    isSigningOut,
+    sessionStatus,
+  } = useAuth();
 
   const [step, setStep] = useState<VerifyStep>('request');
   const [otp, setOtp] = useState('');
@@ -62,12 +70,14 @@ function AdminVerifyForm() {
     return () => clearInterval(timer);
   }, [expiresIn]);
 
-  // ── Auth guard: do not send signed-out users to login?redirect=/admin (verify loop) ──
+  // ── Auth guard: hard redirect avoids middleware ↔ client redirect loop ──
   useEffect(() => {
-    if (!authLoading && !isAuthenticated) {
-      window.location.replace("/login");
+    if (isSigningOut) return;
+    if (sessionStatus === "unknown" || authLoading) return;
+    if (!isAuthenticated) {
+      window.location.replace("/login?signedOut=1");
     }
-  }, [authLoading, isAuthenticated]);
+  }, [authLoading, isAuthenticated, isSigningOut, sessionStatus]);
 
   const isAdmin = canRequestAdminOtp(role ?? '');
 
@@ -160,10 +170,13 @@ function AdminVerifyForm() {
   );
 
   // ── Loading state ──
-  if (authLoading) {
+  if (authLoading || isSigningOut || sessionStatus === "unknown") {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50">
+      <div className="flex min-h-screen flex-col items-center justify-center gap-3 bg-slate-50">
         <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
+        {isSigningOut ? (
+          <p className="text-sm text-slate-500">Signing out…</p>
+        ) : null}
       </div>
     );
   }
@@ -233,13 +246,15 @@ function AdminVerifyForm() {
                 </div>
               </div>
 
-              <div className="rounded-xl border border-slate-100 bg-slate-50/50 px-4 py-3">
-                <div className="text-xs font-semibold text-slate-400">SIGNED IN AS</div>
-                <div className="mt-0.5 text-sm font-bold text-slate-900">
-                  {profile?.full_name || 'Admin User'}
+              {isAuthenticated && profile ? (
+                <div className="rounded-xl border border-slate-100 bg-slate-50/50 px-4 py-3">
+                  <div className="text-xs font-semibold text-slate-400">SIGNED IN AS</div>
+                  <div className="mt-0.5 text-sm font-bold text-slate-900">
+                    {profile.full_name || 'Admin User'}
+                  </div>
+                  <div className="text-xs text-slate-500">{profile.email}</div>
                 </div>
-                <div className="text-xs text-slate-500">{profile?.email}</div>
-              </div>
+              ) : null}
 
               <Button
                 onClick={handleSendOtp}

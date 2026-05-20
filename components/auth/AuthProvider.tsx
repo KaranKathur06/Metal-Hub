@@ -15,11 +15,11 @@ import {
   type SupabaseClient,
   type User,
 } from "@supabase/supabase-js";
-import { useRouter } from "next/navigation";
 import { resolveAuthRole } from "@/lib/auth/profile-role";
 import { getHomePathForRole } from "@/lib/auth/role-routing";
 import { resolveEffectiveRole } from "@/lib/auth/rbac";
 import { authLog } from "@/lib/auth/auth-logger";
+import { performSignOut } from "@/lib/auth/session-lifecycle";
 import type {
   ServerAuthBootstrap,
   ServerAuthBootstrapPayload,
@@ -30,6 +30,8 @@ import { getSupabaseBrowserClient } from "../../lib/supabase/browser-client";
 export type MarketplaceRole = "buyer" | "seller" | "both" | "admin" | "super_admin" | "moderator" | "supplier_success" | "support_agent" | "finance" | "marketing" | "manufacturer" | "distributor" | "logistics";
 export type ProfileStatus = "incomplete" | "in_progress" | "complete";
 export type VerificationStatus = "draft" | "pending" | "in_review" | "approved" | "rejected" | "expired";
+
+export type SessionStatus = "unknown" | "authenticated" | "unauthenticated";
 
 export type MarketplaceProfile = {
   id: string;
@@ -86,7 +88,9 @@ type AuthContextValue = MarketplaceIdentity & {
   user: User | null;
   loading: boolean;
   roleLoading: boolean;
+  sessionStatus: SessionStatus;
   isAuthenticated: boolean;
+  isSigningOut: boolean;
   role: MarketplaceRole | null;
   onboardingIncomplete: boolean;
   developmentTrustMode: boolean;
@@ -222,24 +226,26 @@ type AuthProviderProps = {
 };
 
 export function AuthProvider({ children, initialAuth = null }: AuthProviderProps) {
-  const router = useRouter();
   const [supabase] = useState(() => getSupabaseBrowserClient());
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
-  const [identity, setIdentity] = useState<MarketplaceIdentity>(() =>
-    initialAuth
-      ? { ...EMPTY_IDENTITY, profile: profileFromBootstrap(initialAuth) }
-      : EMPTY_IDENTITY,
-  );
+  const [identity, setIdentity] = useState<MarketplaceIdentity>(EMPTY_IDENTITY);
   const [developmentTrustMode, setDevelopmentTrustMode] = useState(true);
-  const [loading, setLoading] = useState(() => !initialAuth);
+  const [loading, setLoading] = useState(true);
   const [roleLoading, setRoleLoading] = useState(false);
-  const isSigningOut = useRef(false);
+  const [sessionStatus, setSessionStatus] = useState<SessionStatus>("unknown");
+  const [isSigningOut, setIsSigningOut] = useState(false);
+  const signingOutRef = useRef(false);
   const identityRequestId = useRef(0);
 
   const loadFullIdentity = useCallback(
     async (nextUser: User | null, options?: { silent?: boolean }) => {
-      if (!supabase) {
+      if (!supabase || signingOutRef.current) {
+        if (!nextUser) setIdentity(EMPTY_IDENTITY);
+        return;
+      }
+
+      if (!nextUser) {
         setIdentity(EMPTY_IDENTITY);
         return;
       }
@@ -256,7 +262,7 @@ export function AuthProvider({ children, initialAuth = null }: AuthProviderProps
           loadDevelopmentTrustMode(supabase),
         ]);
 
-        if (requestId !== identityRequestId.current) return;
+        if (requestId !== identityRequestId.current || signingOutRef.current) return;
 
         setIdentity(nextIdentity);
         setDevelopmentTrustMode(nextDevelopmentTrustMode);
@@ -269,23 +275,35 @@ export function AuthProvider({ children, initialAuth = null }: AuthProviderProps
     [supabase],
   );
 
-  const refreshIdentity = useCallback(async () => {
-    if (!supabase) {
-      setIdentity(EMPTY_IDENTITY);
-      return;
-    }
+  const applySession = useCallback(
+    (nextSession: Session | null, nextUser: User | null) => {
+      setSession(nextSession);
+      setUser(nextUser);
 
-    const { data: sessionData } = await supabase.auth.getSession();
-    const cachedUser = sessionData.session?.user ?? null;
-    setSession(sessionData.session ?? null);
-    setUser(cachedUser);
+      if (nextUser) {
+        setSessionStatus("authenticated");
+        setIdentity((prev) => ({
+          ...prev,
+          profile: prev.profile?.id === nextUser.id ? prev.profile : fallbackProfileFromUser(nextUser),
+        }));
+      } else {
+        setSessionStatus("unauthenticated");
+        setIdentity(EMPTY_IDENTITY);
+      }
+    },
+    [],
+  );
+
+  const refreshIdentity = useCallback(async () => {
+    if (!supabase || signingOutRef.current) return;
 
     const { data: { user: validatedUser } } = await supabase.auth.getUser();
-    const currentUser = validatedUser ?? cachedUser;
-    setUser(currentUser);
+    const { data: sessionData } = await supabase.auth.getSession();
+    const currentUser = validatedUser ?? sessionData.session?.user ?? null;
 
+    applySession(sessionData.session ?? null, currentUser);
     await loadFullIdentity(currentUser);
-  }, [loadFullIdentity, supabase]);
+  }, [applySession, loadFullIdentity, supabase]);
 
   useEffect(() => {
     let mounted = true;
@@ -295,46 +313,38 @@ export function AuthProvider({ children, initialAuth = null }: AuthProviderProps
         if (mounted) {
           setDevelopmentTrustMode(await loadDevelopmentTrustMode(null));
           setLoading(false);
+          setSessionStatus("unauthenticated");
         }
         return;
       }
 
       authLog("client_hydrate", "start", { hasBootstrap: Boolean(initialAuth) });
 
-      // Fast path: local session (no network) for instant navbar
       const { data: sessionData } = await supabase.auth.getSession();
       const cachedSession = sessionData.session ?? null;
-      const cachedUser = cachedSession?.user ?? null;
 
-      if (mounted && cachedSession) {
-        setSession(cachedSession);
-        setUser(cachedUser);
-        setLoading(false);
-
-        setIdentity((prev) => ({
-          ...prev,
-          profile: prev.profile ?? fallbackProfileFromUser(cachedUser),
-        }));
-      }
-
-      // Validate JWT in background
       const { data: { user: validatedUser } } = await supabase.auth.getUser();
-      const currentUser = validatedUser ?? cachedUser;
+      const currentUser = validatedUser ?? cachedSession?.user ?? null;
 
-      if (!mounted) return;
+      if (!mounted || signingOutRef.current) return;
 
       if (!currentUser) {
-        setSession(null);
-        setUser(null);
-        setIdentity(EMPTY_IDENTITY);
+        applySession(null, null);
         setLoading(false);
         setRoleLoading(false);
+        authLog("client_hydrate", "anonymous");
         return;
       }
 
-      setSession(cachedSession);
-      setUser(currentUser);
+      applySession(cachedSession, currentUser);
       setLoading(false);
+
+      if (initialAuth && initialAuth.userId === currentUser.id) {
+        setIdentity((prev) => ({
+          ...prev,
+          profile: prev.profile ?? profileFromBootstrap(initialAuth),
+        }));
+      }
 
       await loadFullIdentity(currentUser, { silent: Boolean(initialAuth) });
       authLog("client_hydrate", "complete", { userId: currentUser.id });
@@ -351,15 +361,13 @@ export function AuthProvider({ children, initialAuth = null }: AuthProviderProps
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, nextSession) => {
-      if (!mounted) return;
+      if (!mounted || signingOutRef.current) return;
 
       const nextUser = nextSession?.user ?? null;
       authLog("auth_event", event, { userId: nextUser?.id });
 
       if (event === "SIGNED_OUT") {
-        setSession(null);
-        setUser(null);
-        setIdentity(EMPTY_IDENTITY);
+        applySession(null, null);
         setLoading(false);
         setRoleLoading(false);
         return;
@@ -372,72 +380,38 @@ export function AuthProvider({ children, initialAuth = null }: AuthProviderProps
       }
 
       if (event === "SIGNED_IN" || event === "USER_UPDATED") {
-        setSession(nextSession);
-        setUser(nextUser);
+        applySession(nextSession, nextUser);
         setLoading(false);
-
-        if (nextUser) {
-          setIdentity((prev) => ({
-            ...prev,
-            profile: prev.profile ?? fallbackProfileFromUser(nextUser),
-          }));
-        }
-
         await loadFullIdentity(nextUser);
         return;
       }
 
-      setSession(nextSession);
-      setUser(nextUser);
+      applySession(nextSession, nextUser);
     });
 
     return () => {
       mounted = false;
       subscription.unsubscribe();
     };
-  }, [supabase, initialAuth, loadFullIdentity]);
+  }, [supabase, initialAuth, loadFullIdentity, applySession]);
 
   const signOut = useCallback(async () => {
-    if (!supabase || isSigningOut.current) return;
+    if (!supabase || signingOutRef.current) return;
 
-    isSigningOut.current = true;
+    signingOutRef.current = true;
+    setIsSigningOut(true);
+    identityRequestId.current += 1;
 
-    const onAdminRoute =
-      typeof window !== "undefined" &&
-      (window.location.pathname.startsWith("/admin") ||
-        window.location.pathname.startsWith("/ops"));
+    applySession(null, null);
+    setLoading(false);
+    setRoleLoading(false);
 
-    try {
-      setSession(null);
-      setUser(null);
-      setIdentity(EMPTY_IDENTITY);
-      setLoading(false);
-      setRoleLoading(false);
+    authLog("sign_out", "start");
 
-      try {
-        await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
-      } catch {
-        // continue — client signOut still runs
-      }
-
-      await supabase.auth.signOut({ scope: "global" });
-
-      // Hard navigation clears stale SSR bootstrap + admin verify loop
-      if (onAdminRoute) {
-        window.location.replace("/login?signedOut=1");
-      } else {
-        window.location.replace("/");
-      }
-    } catch (err) {
-      console.error("[MetalHub] Sign out error:", err);
-      setSession(null);
-      setUser(null);
-      setIdentity(EMPTY_IDENTITY);
-      window.location.replace(onAdminRoute ? "/login?signedOut=1" : "/");
-    } finally {
-      isSigningOut.current = false;
-    }
-  }, [supabase]);
+    await performSignOut({
+      supabaseSignOut: () => supabase.auth.signOut({ scope: "global" }),
+    });
+  }, [applySession, supabase]);
 
   const value = useMemo<AuthContextValue>(() => {
     const role = identity.profile?.role ?? null;
@@ -446,7 +420,7 @@ export function AuthProvider({ children, initialAuth = null }: AuthProviderProps
         (identity.profile.profile_status !== "complete" || identity.profile.onboarding_step > 1),
     );
 
-    const authenticated = Boolean(user?.id ?? session?.user?.id);
+    const authenticated = sessionStatus === "authenticated" && Boolean(user?.id);
 
     return {
       supabase,
@@ -454,7 +428,9 @@ export function AuthProvider({ children, initialAuth = null }: AuthProviderProps
       user,
       loading,
       roleLoading,
+      sessionStatus,
       isAuthenticated: authenticated,
+      isSigningOut,
       role,
       onboardingIncomplete,
       developmentTrustMode,
@@ -463,7 +439,19 @@ export function AuthProvider({ children, initialAuth = null }: AuthProviderProps
       signOut,
       ...identity,
     };
-  }, [developmentTrustMode, identity, loading, roleLoading, refreshIdentity, session, signOut, supabase, user]);
+  }, [
+    developmentTrustMode,
+    identity,
+    isSigningOut,
+    loading,
+    roleLoading,
+    refreshIdentity,
+    session,
+    sessionStatus,
+    signOut,
+    supabase,
+    user,
+  ]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

@@ -1,30 +1,30 @@
-import { NextResponse } from "next/server"
-import type { NextRequest } from "next/server"
-import { createServerClient } from "@supabase/ssr"
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { createServerClient } from "@supabase/ssr";
 
-// ── Centralized role definitions ──
-// These are inlined here because middleware runs in Edge Runtime
-// and cannot import from lib/ modules that use Node.js APIs.
 const ADMIN_ROLE_SET = new Set([
-  'super_admin', 'superadmin', 'admin', 'moderator', 'support_agent',
-  'supplier_success', 'finance', 'marketing',
-])
+  "super_admin",
+  "superadmin",
+  "admin",
+  "moderator",
+  "support_agent",
+  "supplier_success",
+  "finance",
+  "marketing",
+]);
 const OPS_ROLE_SET = new Set([
-  'super_admin', 'superadmin', 'admin', 'moderator', 'support_agent', 'supplier_success',
-])
+  "super_admin",
+  "superadmin",
+  "admin",
+  "moderator",
+  "support_agent",
+  "supplier_success",
+]);
+const REQUIRES_2FA_SET = new Set(["super_admin", "admin"]);
 
-function normalizeEdgeRole(role: unknown): string {
-  if (typeof role !== 'string' || !role) return ''
-  if (role === 'superadmin') return 'super_admin'
-  return role
-}
-const REQUIRES_2FA_SET = new Set(['super_admin', 'admin'])
+const LOGOUT_COOKIE = "mh_logout";
+const ADMIN_VERIFIED_COOKIE = "admin_verified";
 
-// ═══════════════════════════════════════════════════════
-// ROUTE PROTECTION CONFIGURATION
-// ═══════════════════════════════════════════════════════
-
-// Routes that require basic authentication
 const PROTECTED_PREFIXES = [
   "/dashboard",
   "/seller",
@@ -35,131 +35,160 @@ const PROTECTED_PREFIXES = [
   "/notifications",
   "/ops",
   "/admin",
-]
+];
 
-// Routes requiring admin/super_admin role
-const ADMIN_PREFIXES = [
-  "/admin",
-  "/ops",
-]
+const AUTH_ROUTES = ["/login", "/register"];
 
-// Routes that should redirect to dashboard if already authenticated
-const AUTH_ROUTES = ["/login", "/register"]
+function normalizeEdgeRole(role: unknown): string {
+  if (typeof role !== "string" || !role) return "";
+  if (role === "superadmin") return "super_admin";
+  return role;
+}
+
+function isAdminVerified(request: NextRequest): boolean {
+  const raw = request.cookies.get(ADMIN_VERIFIED_COOKIE)?.value;
+  if (!raw) return false;
+  try {
+    const data = JSON.parse(raw) as { expires?: number };
+    if (data.expires && Date.now() > data.expires) return false;
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 export async function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl
+  const { pathname, searchParams } = request.nextUrl;
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   if (!supabaseUrl || !supabaseAnonKey) {
-    return NextResponse.next()
+    return NextResponse.next();
   }
 
-  // Create a mutable response so @supabase/ssr can set/refresh cookies
+  const logoutInProgress = request.cookies.get(LOGOUT_COOKIE)?.value === "1";
+  const signedOutQuery = searchParams.get("signedOut") === "1";
+
   let response = NextResponse.next({
     request: { headers: request.headers },
-  })
+  });
 
   const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
     cookies: {
       getAll() {
-        return request.cookies.getAll()
+        return request.cookies.getAll();
       },
       setAll(cookiesToSet) {
-        // Write cookies into the mutable response
         cookiesToSet.forEach(({ name, value, options }) => {
-          request.cookies.set(name, value)
-          response.cookies.set(name, value, options)
-        })
+          request.cookies.set(name, value);
+          response.cookies.set(name, value, options);
+        });
       },
     },
-  })
+  });
 
-  // Refresh the session — this also refreshes expired access tokens
   const {
     data: { user },
-  } = await supabase.auth.getUser()
+  } = await supabase.auth.getUser();
 
-  const isProtected = PROTECTED_PREFIXES.some((prefix) => pathname.startsWith(prefix))
-  const isAdminRoute = ADMIN_PREFIXES.some((prefix) => pathname.startsWith(prefix))
-  const isAuthRoute = AUTH_ROUTES.some((route) => pathname === route)
+  // ── Logout in progress: never trap user on admin verify / admin redirect loop ──
+  if (logoutInProgress || signedOutQuery) {
+    response.cookies.set(LOGOUT_COOKIE, "", { path: "/", maxAge: 0 });
+    response.cookies.set(ADMIN_VERIFIED_COOKIE, "", { path: "/", maxAge: 0 });
 
-  // ── Unauthenticated → protected route: redirect to login ──
-  if (isProtected && !user) {
-    const loginUrl = new URL("/login", request.url)
-    // Avoid login?redirect=/admin → verify trap after sign-out
-    if (!pathname.startsWith("/admin/verify")) {
-      loginUrl.searchParams.set("redirect", pathname)
+    if (pathname.startsWith("/admin") || pathname.startsWith("/ops")) {
+      const login = new URL("/login", request.url);
+      login.searchParams.set("signedOut", "1");
+      return NextResponse.redirect(login);
     }
-    return NextResponse.redirect(loginUrl)
+
+    if (AUTH_ROUTES.includes(pathname)) {
+      return response;
+    }
+
+    return response;
   }
 
-  // ── Admin/Ops route protection: RBAC enforcement ──
-  // Check role from user_metadata first (fast check in middleware)
-  // Deep DB-level role check happens in API routes and server components
+  const isProtected = PROTECTED_PREFIXES.some((prefix) => pathname.startsWith(prefix));
+  const isAdminRoute =
+    pathname.startsWith("/admin") || pathname.startsWith("/ops");
+  const isAuthRoute = AUTH_ROUTES.includes(pathname);
+  const isVerifyPage = pathname.startsWith("/admin/verify");
+
+  if (isProtected && !user) {
+    const loginUrl = new URL("/login", request.url);
+    if (!isVerifyPage) {
+      loginUrl.searchParams.set("redirect", pathname);
+    }
+    return NextResponse.redirect(loginUrl);
+  }
+
   if (isAdminRoute && user) {
     const effectiveRole = normalizeEdgeRole(
-      user.app_metadata?.role ?? user.user_metadata?.role ?? '',
-    )
+      user.app_metadata?.role ?? user.user_metadata?.role ?? "",
+    );
 
-    // Check if the role is allowed for admin/ops routes
     const isAdminUser = pathname.startsWith("/ops")
       ? OPS_ROLE_SET.has(effectiveRole)
-      : ADMIN_ROLE_SET.has(effectiveRole)
+      : ADMIN_ROLE_SET.has(effectiveRole);
 
     if (!isAdminUser) {
-      // Non-admin user trying to access admin routes → redirect to their dashboard
-      let redirectUrl = "/dashboard"
-      if (effectiveRole === "seller" || effectiveRole === "manufacturer" || effectiveRole === "distributor") redirectUrl = "/seller/dashboard"
-      else if (effectiveRole === "buyer") redirectUrl = "/buyer/dashboard"
-
-      return NextResponse.redirect(new URL(redirectUrl, request.url))
+      let redirectUrl = "/dashboard";
+      if (
+        effectiveRole === "seller" ||
+        effectiveRole === "manufacturer" ||
+        effectiveRole === "distributor"
+      ) {
+        redirectUrl = "/seller/dashboard";
+      } else if (effectiveRole === "buyer") {
+        redirectUrl = "/buyer/dashboard";
+      }
+      return NextResponse.redirect(new URL(redirectUrl, request.url));
     }
 
-    // For /admin routes, check if admin has verified 2FA session
-    // Only require 2FA for super_admin and admin roles
-    if (pathname.startsWith("/admin") && !pathname.startsWith("/admin/verify") && REQUIRES_2FA_SET.has(effectiveRole)) {
-      const adminVerified = request.cookies.get("admin_verified")
-      if (!adminVerified?.value) {
-        // Admin must complete 2FA verification first
-        const verifyUrl = new URL("/admin/verify", request.url)
-        verifyUrl.searchParams.set("redirect", pathname)
-        return NextResponse.redirect(verifyUrl)
-      }
+    const needs2fa =
+      pathname.startsWith("/admin") &&
+      !isVerifyPage &&
+      REQUIRES_2FA_SET.has(effectiveRole);
 
-      // Verify the admin session hasn't expired (cookie contains expiry timestamp)
-      try {
-        const sessionData = JSON.parse(adminVerified.value)
-        if (sessionData.expires && Date.now() > sessionData.expires) {
-          // Session expired — clear and re-verify
-          response.cookies.delete("admin_verified")
-          const verifyUrl = new URL("/admin/verify", request.url)
-          verifyUrl.searchParams.set("redirect", pathname)
-          return NextResponse.redirect(verifyUrl)
-        }
-      } catch {
-        // Invalid cookie data — clear and re-verify
-        response.cookies.delete("admin_verified")
-        const verifyUrl = new URL("/admin/verify", request.url)
-        verifyUrl.searchParams.set("redirect", pathname)
-        return NextResponse.redirect(verifyUrl)
+    if (needs2fa && !isAdminVerified(request)) {
+      const verifyUrl = new URL("/admin/verify", request.url);
+      if (pathname !== "/admin") {
+        verifyUrl.searchParams.set("redirect", pathname);
       }
+      return NextResponse.redirect(verifyUrl);
     }
   }
 
-  // ── Authenticated → auth route: redirect to dashboard ──
-  if (isAuthRoute && user) {
-    const role = normalizeEdgeRole(user.app_metadata?.role ?? user.user_metadata?.role ?? '')
-    let dashboardUrl = "/dashboard"
-    if (role === "seller" || role === "manufacturer" || role === "distributor") dashboardUrl = "/seller/dashboard"
-    else if (role === "buyer") dashboardUrl = "/buyer/dashboard"
-    else if (role === "admin" || role === "super_admin") dashboardUrl = "/admin"
-    else if (role === "moderator" || role === "support_agent" || role === "supplier_success") dashboardUrl = "/ops"
-    else if (role === "finance" || role === "marketing") dashboardUrl = "/admin"
-    return NextResponse.redirect(new URL(dashboardUrl, request.url))
+  // Authenticated user on login/register — send to home route (not verify trap)
+  if (isAuthRoute && user && !signedOutQuery) {
+    const role = normalizeEdgeRole(
+      user.app_metadata?.role ?? user.user_metadata?.role ?? "",
+    );
+    let dashboardUrl = "/dashboard";
+    if (
+      role === "seller" ||
+      role === "manufacturer" ||
+      role === "distributor"
+    ) {
+      dashboardUrl = "/seller/dashboard";
+    } else if (role === "buyer") {
+      dashboardUrl = "/buyer/dashboard";
+    } else if (role === "admin" || role === "super_admin") {
+      dashboardUrl = isAdminVerified(request) ? "/admin" : "/admin/verify";
+    } else if (
+      role === "moderator" ||
+      role === "support_agent" ||
+      role === "supplier_success"
+    ) {
+      dashboardUrl = "/ops";
+    } else if (role === "finance" || role === "marketing") {
+      dashboardUrl = "/admin";
+    }
+    return NextResponse.redirect(new URL(dashboardUrl, request.url));
   }
 
-  return response
+  return response;
 }
 
 export const config = {
@@ -176,4 +205,4 @@ export const config = {
     "/login",
     "/register",
   ],
-}
+};

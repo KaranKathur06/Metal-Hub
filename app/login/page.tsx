@@ -22,7 +22,8 @@ export default function LoginPage() {
 function LoginForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const { supabase, refreshIdentity, roleLoading, loading: authBootLoading } = useAuth()
+  const { supabase, refreshIdentity, roleLoading, loading: authBootLoading, sessionStatus } = useAuth()
+  const signedOut = searchParams.get("signedOut") === "1"
   const [isLoading, setIsLoading] = useState(false)
   const [method, setMethod] = useState<"email" | "otp">("email")
   const [showPassword, setShowPassword] = useState(false)
@@ -137,7 +138,12 @@ function LoginForm() {
       <div className="flex-1 flex flex-col items-center justify-start pt-16 p-6 relative w-full">
         <div className="absolute top-5 left-6 lg:hidden"><Link href="/" className="text-xl font-bold text-slate-900">MetalHub</Link></div>
         <div className="w-full max-w-[450px]">
-          <div className="mb-6"><h2 className="text-2xl font-extrabold text-slate-900 tracking-tight">Login to MetalHub</h2></div>
+          <div className="mb-6">
+            <h2 className="text-2xl font-extrabold text-slate-900 tracking-tight">Login to MetalHub</h2>
+            {signedOut && sessionStatus !== "authenticated" ? (
+              <p className="mt-2 text-sm text-slate-600">You have been signed out. Sign in again to continue.</p>
+            ) : null}
+          </div>
           <div className="bg-white rounded-[15px] p-6 shadow-[0_20px_40px_rgba(0,0,0,0.08)] border border-[#e5e7eb]">
             {error && (
               <div className="mb-4 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
