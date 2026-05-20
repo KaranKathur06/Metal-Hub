@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Award, BadgeCheck, Clock, Factory, Globe2, Package, ShieldCheck } from "lucide-react";
 import type { MarketplaceSupplier } from "@/lib/marketplace/supplier-query";
 import { getVisibleCertificationBadges } from "@/lib/marketplace/ranking";
+import { MinimalSupplierTrustChip } from "@/components/marketplace/MinimalSupplierTrustChip";
 
 type SupplierCardProps = {
     supplier: MarketplaceSupplier;
@@ -39,6 +40,13 @@ export function SupplierCard({ supplier }: SupplierCardProps) {
                             {supplier.company_name}
                         </Link>
 
+                        <MinimalSupplierTrustChip
+                            trustScore={supplier.trust_score ?? undefined}
+                            trustLevel={
+                                (supplier.trust_level as 0 | 1 | 2 | 3 | 4 | null) ??
+                                (supplier.verification_status === "verified" ? 3 : 0)
+                            }
+                        />
                         {supplier.verification_status === "verified" ? (
                             <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700 ring-1 ring-emerald-200">
                                 <BadgeCheck className="h-3.5 w-3.5" aria-hidden="true" />

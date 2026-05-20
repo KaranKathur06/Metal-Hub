@@ -15,6 +15,7 @@ import { useAuth } from '@/components/auth/AuthProvider';
 import { ProfileDropdown } from '@/components/layout/ProfileDropdown';
 import { resolveAuthRole, type AppRole } from '@/lib/auth/profile-role';
 import { getAuthenticatedNavItems, getOnboardingHref } from '@/lib/marketplace/auth-navigation';
+import { NavbarNotificationBell } from '@/components/marketplace/NavbarNotificationBell';
 import { useTaxonomyRegistry } from '@/lib/marketplace/use-taxonomy-registry';
 import type { TaxonomyNode } from '@/lib/marketplace/taxonomy';
 
@@ -328,9 +329,7 @@ export function Header() {
                         <ShieldCheck className="h-3.5 w-3.5" /> Complete Profile
                       </Link>
                     )}
-                    <Link href="/notifications" className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-900" aria-label="Notifications">
-                      <Bell className="h-4 w-4" />
-                    </Link>
+                    <NavbarNotificationBell />
                     <Link href={dashboardHref} className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-900" aria-label="Dashboard">
                       <LayoutDashboard className="h-4 w-4" />
                     </Link>

@@ -40,6 +40,9 @@ export type MarketplaceSupplier = {
     industries: MarketplaceFacet[];
     products: Array<MarketplaceFacet & { family?: string | null }>;
     certifications: SupplierCertificationSummary[];
+    /** Populated when identity bridge links to seller_profiles / companies */
+    trust_level?: number | null;
+    trust_score?: number | null;
 };
 
 export type SupplierSearchResult = {

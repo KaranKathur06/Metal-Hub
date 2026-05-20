@@ -23,6 +23,7 @@ export type RfqPublicDetail = {
     budgetRange: string | null;
     deliveryTimeline: string | null;
     status: string;
+    visibilityLevel: string;
     buyerCompanyName: string | null;
     location: string;
     createdAt: string;
@@ -85,6 +86,7 @@ export async function loadRfqPublicDetail(
       required_by,
       delivery_timeline,
       status,
+      visibility_level,
       created_at,
       buyer_company_name,
       city,
@@ -117,6 +119,7 @@ export async function loadRfqPublicDetail(
         budgetRange: data.budget_range,
         deliveryTimeline: data.delivery_timeline,
         status: data.status,
+        visibilityLevel: data.visibility_level ?? "standard",
         buyerCompanyName: data.buyer_company_name,
         location: location || "India",
         createdAt: data.created_at,

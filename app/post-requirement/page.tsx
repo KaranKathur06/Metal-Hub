@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
   AlertCircle, ArrowRight, CheckCircle, IndianRupee, Loader2,
@@ -12,16 +11,35 @@ import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { useTaxonomyRegistry } from '@/lib/marketplace/use-taxonomy-registry';
+import { BuyerProcurementSection } from '@/components/dashboard/BuyerProcurementSection';
+import { ProcurementGateNotice } from '@/components/marketplace/ProcurementGateNotice';
+import { evaluateProcurementGate } from '@/lib/marketplace/procurement-gates';
+import { getBuyerProcurementContext } from '@/lib/marketplace/procurement-context';
 
 export default function PostRequirementPage() {
-  const router = useRouter();
-  const { isAuthenticated, profile, loading: authLoading, supabase } = useAuth();
+  const { isAuthenticated, profile, buyerProfile, user, loading: authLoading, developmentTrustMode } = useAuth();
   const { data: taxonomy } = useTaxonomyRegistry();
 
   const [step, setStep] = useState(1);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [createdRfqSlug, setCreatedRfqSlug] = useState<string | null>(null);
+
+  const procurementCtx = getBuyerProcurementContext({
+    profile,
+    buyerProfile,
+    emailVerified: Boolean(user?.email_confirmed_at ?? profile?.email),
+  });
+
+  const publishGate = evaluateProcurementGate({
+    action: 'publish_rfq',
+    role: 'buyer',
+    currentTrustLevel: procurementCtx.currentTrustLevel,
+    profileCompletionPercent: procurementCtx.profileCompletionPercent,
+    emailVerified: procurementCtx.emailVerified,
+    developmentTrustMode: developmentTrustMode ?? procurementCtx.developmentTrustMode,
+  });
 
   const [form, setForm] = useState({
     title: '',
@@ -58,40 +76,44 @@ export default function PostRequirementPage() {
 
   const handleSubmit = async () => {
     if (!validateStep2()) return;
+    if (!publishGate.allowed && publishGate.hardBlocked) {
+      setError(publishGate.message ?? 'Complete your profile before publishing RFQs.');
+      return;
+    }
+
     setSaving(true);
     setError(null);
 
     try {
-      if (supabase && profile) {
-        const { error: insertError } = await supabase.from('inquiries').insert({
-          buyer_id: profile.id,
+      const response = await fetch('/api/inquiries', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
           title: form.title,
+          description: form.description,
           category_id: form.categoryId || null,
           industry_id: form.industryId || null,
-          description: form.description,
           quantity: form.quantity,
           unit: form.unit,
-          budget_min: form.budgetMin ? parseInt(form.budgetMin) : null,
-          budget_max: form.budgetMax ? parseInt(form.budgetMax) : null,
+          budget_min: form.budgetMin ? parseInt(form.budgetMin, 10) : null,
+          budget_max: form.budgetMax ? parseInt(form.budgetMax, 10) : null,
           delivery_location: form.deliveryLocation,
           delivery_timeline: form.deliveryTimeline,
           quality_specs: form.qualitySpecs,
-          status: 'active',
-        });
+        }),
+      });
 
-        if (insertError) {
-          // If table doesn't exist yet, show success anyway in dev mode
-          if (insertError.message.includes('Could not find')) {
-            setSuccess(true);
-            return;
-          }
-          setError(insertError.message);
-          return;
-        }
+      const result = await response.json();
+
+      if (!response.ok) {
+        setError(result.error?.message ?? 'Failed to post requirement');
+        return;
       }
+
+      setCreatedRfqSlug(result.data?.slug ?? null);
       setSuccess(true);
-    } catch (err: any) {
-      setError(err?.message || 'Failed to post requirement');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to post requirement');
     } finally {
       setSaving(false);
     }
@@ -111,7 +133,10 @@ export default function PostRequirementPage() {
           </p>
           <div className="flex justify-center gap-3">
             <Link href="/marketplace"><Button variant="outline">Browse Marketplace</Button></Link>
-            <Link href="/dashboard/buyer"><Button className="bg-gradient-to-r from-[#1e3a8a] to-[#3b82f6] text-white font-bold">My Dashboard</Button></Link>
+            {createdRfqSlug ? (
+              <Link href={`/rfq/${createdRfqSlug}`}><Button className="bg-gradient-to-r from-[#1e3a8a] to-[#3b82f6] text-white font-bold">View RFQ</Button></Link>
+            ) : null}
+            <Link href="/buyer/requirements"><Button variant="outline">My Requirements</Button></Link>
           </div>
         </div>
       </div>
@@ -151,7 +176,10 @@ export default function PostRequirementPage() {
         </div>
       </div>
 
-      <div className="mx-auto max-w-3xl px-6 py-8">
+      <div className="mx-auto max-w-3xl space-y-6 px-6 py-8">
+        <BuyerProcurementSection />
+        <ProcurementGateNotice result={publishGate} />
+
         <div className="rounded-xl border border-slate-200 bg-white p-6">
           {error && (
             <div className="mb-5 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
@@ -265,8 +293,7 @@ export default function PostRequirementPage() {
           )}
         </div>
 
-        {/* Trust signals */}
-        <div className="mt-6 flex flex-wrap items-center justify-center gap-6 text-xs text-slate-400">
+        <div className="flex flex-wrap items-center justify-center gap-6 text-xs text-slate-400">
           <span className="flex items-center gap-1"><ShieldCheck className="h-3.5 w-3.5" /> Verified suppliers only</span>
           <span className="flex items-center gap-1"><CheckCircle className="h-3.5 w-3.5" /> Free to post</span>
           <span className="flex items-center gap-1"><MapPin className="h-3.5 w-3.5" /> Pan-India delivery</span>

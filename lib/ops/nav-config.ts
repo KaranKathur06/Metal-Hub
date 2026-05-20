@@ -1,6 +1,6 @@
 // Ops Dashboard navigation configuration
 import {
-  LayoutDashboard, Users, Package, Shield, Lock, DollarSign,
+  LayoutDashboard, Users, Package, Shield, ShieldCheck, Lock, DollarSign,
   ScrollText, FileText, Headphones, Target, UserCircle,
   TrendingUp, Mail, CheckSquare, Calendar, BarChart3,
 } from 'lucide-react';
@@ -17,6 +17,7 @@ export const adminNavItems: NavItem[] = [
   { label: 'Users', href: '/ops/admin/users', icon: Users },
   { label: 'Listings', href: '/ops/admin/listings', icon: Package },
   { label: 'Moderation', href: '/ops/admin/moderation', icon: Shield },
+  { label: 'Verification', href: '/ops/admin/verification', icon: ShieldCheck },
   { label: 'Security', href: '/ops/admin/security', icon: Lock },
   { label: 'Finance', href: '/ops/admin/finance', icon: DollarSign },
   { label: 'Audit Logs', href: '/ops/admin/audit', icon: ScrollText },

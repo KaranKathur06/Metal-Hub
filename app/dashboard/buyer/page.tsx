@@ -1,7 +1,9 @@
 "use client"
 
-import { Heart, MessageSquare, Eye, Package } from "lucide-react"
+import { Heart, MessageSquare, Eye, Package, ClipboardList } from "lucide-react"
 import Link from "next/link"
+import { BuyerProcurementSection } from "@/components/dashboard/BuyerProcurementSection"
+import { MessageInbox } from "@/components/marketplace/MessageInbox"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -47,6 +49,21 @@ export default function BuyerDashboardPage() {
         <p className="mt-2 text-muted-foreground">
           Manage your saved listings and inquiries
         </p>
+        <div className="mt-4 flex flex-wrap gap-3">
+          <Link href="/buyer/requirements">
+            <Button variant="outline">
+              <ClipboardList className="mr-2 h-4 w-4" />
+              My requirements
+            </Button>
+          </Link>
+          <Link href="/post-requirement">
+            <Button>Post requirement</Button>
+          </Link>
+        </div>
+      </div>
+
+      <div className="mb-8">
+        <BuyerProcurementSection />
       </div>
 
       {/* Quick Stats */}
@@ -152,15 +169,10 @@ export default function BuyerDashboardPage() {
           <Card>
             <CardHeader>
               <CardTitle>Messages</CardTitle>
-              <CardDescription>
-                Your conversations with sellers
-              </CardDescription>
+              <CardDescription>Your conversations with sellers</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="text-center py-12 text-muted-foreground">
-                <MessageSquare className="mx-auto h-12 w-12 mb-4 opacity-50" />
-                <p>No messages yet</p>
-              </div>
+              <MessageInbox />
             </CardContent>
           </Card>
         </TabsContent>

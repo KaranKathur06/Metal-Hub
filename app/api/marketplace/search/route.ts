@@ -5,6 +5,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createSupabaseServerClient } from '@/lib/supabase/server-client';
+import { searchMarketplaceSuppliers } from '@/lib/marketplace/supplier-query';
 
 export const dynamic = 'force-dynamic';
 
@@ -34,58 +35,39 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // ─── 1. SEARCH SUPPLIERS ───
+    // ─── 1. SEARCH SUPPLIERS (canonical public.suppliers via RPC) ───
     let supplierResults: any[] = [];
+    let supplierTotal = 0;
     if (type === 'all' || type === 'suppliers') {
-      // Multi-field search: name, description, capabilities, products, industries
-      const { data: suppliers, count, error } = await supabase
-        .from('companies')
-        .select(`
-          id, name, slug, description, verification_status, response_rate, completion_rate,
-          avg_response_hours, iso_certified, export_capability, established_year, employee_count,
-          city_id, created_at,
-          company_capabilities!inner(
-            taxonomy!inner(name, slug)
-          ),
-          company_products!inner(
-            taxonomy!inner(name, slug)
-          ),
-          company_industries!inner(
-            taxonomy!inner(name, slug)
-          )
-        `, { count: 'exact' })
-        .or(
-          `name.ilike.%${q}%,` +
-          `description.ilike.%${q}%,` +
-          `company_capabilities.taxonomy.name.ilike.%${q}%,` +
-          `company_capabilities.taxonomy.slug.ilike.%${q}%,` +
-          `company_products.taxonomy.name.ilike.%${q}%,` +
-          `company_products.taxonomy.slug.ilike.%${q}%,` +
-          `company_industries.taxonomy.name.ilike.%${q}%,` +
-          `company_industries.taxonomy.slug.ilike.%${q}%`
-        )
-        .eq('verification_status', 'approved')
-        .is('deleted_at', null)
-        .order('response_rate', { ascending: false })
-        .range(offset, offset + limit - 1);
+      try {
+        const result = await searchMarketplaceSuppliers(supabase, {
+          query: q,
+          page,
+          pageSize: limit,
+          includeSeeded: true,
+        });
 
-      if (!error && suppliers) {
-        supplierResults = suppliers.map((s) => ({
+        supplierTotal = result.totalCount;
+        supplierResults = result.suppliers.map((s) => ({
           type: 'supplier',
           id: s.id,
-          name: s.name,
+          name: s.company_name,
           slug: s.slug,
-          description: s.description,
+          description: s.short_description,
           verification_status: s.verification_status,
           response_rate: s.response_rate,
           completion_rate: s.completion_rate,
-          iso_certified: s.iso_certified,
           export_capability: s.export_capability,
-          years_in_business: s.established_year ? new Date().getFullYear() - s.established_year : 0,
-          capabilities: s.company_capabilities?.map((cc: any) => cc.taxonomy?.name).filter(Boolean) || [],
-          products: s.company_products?.map((cp: any) => cp.taxonomy?.name).filter(Boolean) || [],
-          industries: s.company_industries?.map((ci: any) => ci.taxonomy?.name).filter(Boolean) || [],
+          years_in_business: s.years_in_business,
+          trust_level: s.trust_level,
+          trust_score: s.trust_score,
+          capabilities: s.capabilities.map((item) => item.name),
+          products: s.products.map((item) => item.name),
+          industries: s.industries.map((item) => item.name),
+          href: `/suppliers/${s.slug}`,
         }));
+      } catch (searchError) {
+        console.error('[marketplace/search] supplier RPC failed', searchError);
       }
     }
 
@@ -145,8 +127,8 @@ export async function GET(request: NextRequest) {
       pagination: {
         page,
         limit,
-        total: (supplierResults.length + productResults.length),
-        totalPages: Math.ceil((supplierResults.length + productResults.length) / limit),
+        total: supplierTotal + productResults.length,
+        totalPages: Math.ceil((supplierTotal + productResults.length) / limit),
       },
       query: q,
       type,

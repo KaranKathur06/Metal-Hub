@@ -33,7 +33,8 @@ export default function SellerOnboardingPage() {
   const router = useRouter();
   const { isAuthenticated, profile, loading: authLoading, supabase } = useAuth();
   const { data: taxonomy } = useTaxonomyRegistry();
-  const devMode = process.env.NEXT_PUBLIC_DEVELOPMENT_TRUST_MODE === 'true';
+  const { developmentTrustMode } = useAuth();
+  const devMode = developmentTrustMode;
 
   const [values, setValues] = useState<Record<string, unknown>>({});
   const [onboardingState, setOnboardingState] = useState<Partial<SellerOnboardingState>>({
@@ -109,15 +110,33 @@ export default function SellerOnboardingPage() {
 
   const handleFinish = async () => {
     setSaving(true);
-    if (supabase && profile) {
-      try {
-        await supabase.from('profiles').update({
-          profile_status: 'complete',
-          onboarding_step: 6,
-        }).eq('id', profile.id);
-      } catch { /* ignore */ }
+    try {
+      const response = await fetch('/api/onboarding/seller', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'commit',
+          draftPayload: values,
+          skippedSteps: onboardingState.skippedSteps ?? [],
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.result?.publicSlug) {
+        router.push(`/suppliers/${data.result.publicSlug}`);
+        return;
+      }
+
+      if (!response.ok) {
+        console.error('[onboarding commit]', data.error);
+      }
+    } catch (error) {
+      console.error('[onboarding commit]', error);
+    } finally {
+      setSaving(false);
     }
-    setSaving(false);
+
     router.push('/dashboard/seller');
   };
 

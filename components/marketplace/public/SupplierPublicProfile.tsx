@@ -17,17 +17,33 @@ import { Button } from "@/components/ui/button";
 import { SupplierCard } from "@/components/marketplace/SupplierCard";
 import { getVisibleCertificationBadges } from "@/lib/marketplace/ranking";
 import type { MarketplaceSupplier } from "@/lib/marketplace/supplier-query";
+import type { SupplierIdentityTrust } from "@/lib/marketplace/supplier-identity";
+import { SupplierProfileTrustSummary } from "@/components/marketplace/SupplierProfileTrustSummary";
+import { SupplierListingCards } from "@/components/marketplace/public/SupplierListingCards";
+
+type SupplierListingPreview = {
+    id: string;
+    title: string;
+    slug: string;
+    metal_type: string | null;
+    price_min: number | null;
+    price_max: number | null;
+    moq: string | null;
+    is_featured: boolean | null;
+};
 
 type SupplierPublicProfileProps = {
-    supplier: MarketplaceSupplier;
+    supplier: MarketplaceSupplier & Partial<SupplierIdentityTrust>;
     relatedSuppliers: MarketplaceSupplier[];
     profileStrength: number;
+    listings?: SupplierListingPreview[];
 };
 
 export function SupplierPublicProfile({
     supplier,
     relatedSuppliers,
     profileStrength,
+    listings = [],
 }: SupplierPublicProfileProps) {
     const certificationBadges = getVisibleCertificationBadges(supplier.certifications, 6);
     const locationLabel = [supplier.city, supplier.state, supplier.country]
@@ -127,6 +143,12 @@ export function SupplierPublicProfile({
                             <FacetList items={supplier.industries} filterPrefix="industry" />
                         </Section>
 
+                        {listings.length > 0 ? (
+                            <Section title="Product listings" icon={<Package className="h-5 w-5" />}>
+                                <SupplierListingCards listings={listings} />
+                            </Section>
+                        ) : null}
+
                         <Section title="Products & materials" icon={<Package className="h-5 w-5" />}>
                             <FacetList items={supplier.products} filterPrefix="category" />
                             <div className="mt-4 grid gap-3 sm:grid-cols-2">
@@ -191,18 +213,34 @@ export function SupplierPublicProfile({
                             ) : null}
                         </div>
 
+                        <SupplierProfileTrustSummary
+                            trustScore={supplier.trustScore ?? supplier.trust_score ?? undefined}
+                            trustLevel={
+                                supplier.trustLevel ??
+                                (supplier.trust_level as 0 | 1 | 2 | 3 | 4 | undefined)
+                            }
+                            verificationStatus={
+                                supplier.verificationStatus ??
+                                (supplier.verification_status === "verified"
+                                    ? "approved"
+                                    : supplier.verification_status)
+                            }
+                            responseTimeHours={supplier.responseTimeHours ?? undefined}
+                            locationLabel={locationLabel}
+                            certifications={
+                                supplier.certificationLabels ??
+                                supplier.certifications.map((cert) => cert.name)
+                            }
+                        />
+
                         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                             <h4 className="text-sm font-bold uppercase tracking-wider text-slate-400">
-                                Trust signals
+                                Profile strength
                             </h4>
                             <ul className="mt-3 space-y-2 text-sm text-slate-600">
                                 <li className="flex items-center gap-2">
                                     <ShieldCheck className="h-4 w-4 text-emerald-500" />
                                     Profile completeness {profileStrength}%
-                                </li>
-                                <li className="flex items-center gap-2">
-                                    <Clock3 className="h-4 w-4 text-amber-500" />
-                                    Avg response: {supplier.avg_response_time ?? "same day"}
                                 </li>
                                 <li className="flex items-center gap-2">
                                     <TrendingUp className="h-4 w-4 text-blue-500" />

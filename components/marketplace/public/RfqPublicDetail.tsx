@@ -1,7 +1,6 @@
 import Link from "next/link";
 import {
     ArrowLeft,
-    ArrowRight,
     Building2,
     Calendar,
     MapPin,
@@ -9,9 +8,9 @@ import {
     ShieldCheck,
     Wrench,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { formatDate } from "@/lib/utils";
 import type { RfqPublicDetail as RfqDetail } from "@/lib/marketplace/public-entities";
+import { PremiumRfqQuotePanel } from "@/components/marketplace/PremiumRfqQuotePanel";
 
 type RfqPublicDetailProps = {
     rfq: RfqDetail;
@@ -34,9 +33,16 @@ export function RfqPublicDetailView({ rfq }: RfqPublicDetailProps) {
 
             <section className="relative overflow-hidden border-b border-slate-200 bg-gradient-to-br from-slate-900 via-slate-800 to-blue-900">
                 <div className="container relative z-10 py-10">
-                    <span className="inline-flex rounded-full bg-white/10 px-3 py-1 text-xs font-semibold capitalize text-white">
-                        {rfq.status}
-                    </span>
+                    <div className="flex flex-wrap gap-2">
+                        <span className="inline-flex rounded-full bg-white/10 px-3 py-1 text-xs font-semibold capitalize text-white">
+                            {rfq.status}
+                        </span>
+                        {rfq.visibilityLevel === "premium" ? (
+                            <span className="inline-flex rounded-full bg-amber-500/20 px-3 py-1 text-xs font-semibold text-amber-200 ring-1 ring-amber-400/30">
+                                Premium RFQ
+                            </span>
+                        ) : null}
+                    </div>
                     <h1 className="mt-4 max-w-4xl text-3xl font-bold text-white md:text-4xl">
                         {rfq.title}
                     </h1>
@@ -100,19 +106,11 @@ export function RfqPublicDetailView({ rfq }: RfqPublicDetailProps) {
                     </div>
 
                     <aside className="lg:sticky lg:top-24 lg:h-fit">
-                        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-                            <h3 className="text-lg font-bold text-slate-900">Submit your quote</h3>
-                            <p className="mt-2 text-sm text-slate-600">
-                                Include lead time, QA plan, and commercial terms to improve your win rate.
-                            </p>
-                            <Button className="mt-5 w-full rounded-xl bg-gradient-to-r from-blue-600 to-blue-700 py-5 text-base font-bold">
-                                Send quote
-                                <ArrowRight className="ml-2 h-4 w-4" />
-                            </Button>
-                            <Button variant="outline" className="mt-3 w-full rounded-xl py-5">
-                                Ask a question
-                            </Button>
-                        </div>
+                        <PremiumRfqQuotePanel
+                            rfqId={rfq.id}
+                            rfqSlug={rfq.slug}
+                            isPremium={rfq.visibilityLevel === "premium"}
+                        />
                         <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-5 text-sm text-slate-600">
                             <p className="flex items-center gap-2">
                                 <ShieldCheck className="h-4 w-4 text-emerald-500" />

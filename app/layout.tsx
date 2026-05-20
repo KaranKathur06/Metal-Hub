@@ -3,7 +3,7 @@ import { Inter } from "next/font/google"
 import "./globals.css"
 import { Header } from "@/components/layout/header"
 import { Footer } from "@/components/layout/footer"
-import { AuthProvider } from "@/components/auth/AuthProvider"
+import { MarketplaceProviders } from "@/components/providers/MarketplaceProviders"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -21,11 +21,11 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
-        <AuthProvider>
+        <MarketplaceProviders>
           <Header />
           <main className="min-h-screen">{children}</main>
           <Footer />
-        </AuthProvider>
+        </MarketplaceProviders>
       </body>
     </html>
   )

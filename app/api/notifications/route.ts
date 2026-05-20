@@ -1,12 +1,12 @@
 /**
- * Metal Hub — Notifications API Route
- *
- * GET /api/notifications          → Get user's notifications (paginated)
- * PUT /api/notifications          → Mark notifications as read (batch)
+ * GET  /api/notifications — Paginated notifications for current profile
+ * PUT  /api/notifications — Mark notifications read (by id or all)
  */
 
-import { NextResponse } from 'next/server';
-import { protectApiRoute } from '@/lib/auth/protect-route';
+import { NextResponse } from "next/server";
+import { protectApiRoute } from "@/lib/auth/protect-route";
+
+export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
   const auth = await protectApiRoute(request);
@@ -15,46 +15,47 @@ export async function GET(request: Request) {
   }
 
   const { searchParams } = new URL(request.url);
-  const page = Math.max(1, parseInt(searchParams.get('page') || '1'));
-  const limit = Math.min(50, Math.max(1, parseInt(searchParams.get('limit') || '20')));
-  const unreadOnly = searchParams.get('unread') === 'true';
+  const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10));
+  const limit = Math.min(50, Math.max(1, parseInt(searchParams.get("limit") || "20", 10)));
+  const unreadOnly = searchParams.get("unread") === "true";
 
   let query = auth.supabase
-    .from('notifications')
-    .select('*', { count: 'exact' })
-    .eq('user_id', auth.user.id)
-    .order('created_at', { ascending: false })
+    .from("notifications")
+    .select("id, title, body, type, href, read_at, created_at", { count: "exact" })
+    .eq("profile_id", auth.user.id)
+    .is("deleted_at", null)
+    .order("created_at", { ascending: false })
     .range((page - 1) * limit, page * limit - 1);
 
   if (unreadOnly) {
-    query = query.eq('is_read', false);
+    query = query.is("read_at", null);
   }
 
   const { data, error, count } = await query;
 
   if (error) {
     return NextResponse.json(
-      { success: false, error: { code: 'SERVER_ERROR', message: error.message } },
+      { success: false, error: { code: "SERVER_ERROR", message: error.message } },
       { status: 500 },
     );
   }
 
-  // Unread count (always include)
   const { count: unreadCount } = await auth.supabase
-    .from('notifications')
-    .select('id', { count: 'exact', head: true })
-    .eq('user_id', auth.user.id)
-    .eq('is_read', false);
+    .from("notifications")
+    .select("id", { count: "exact", head: true })
+    .eq("profile_id", auth.user.id)
+    .is("read_at", null)
+    .is("deleted_at", null);
 
   return NextResponse.json({
     success: true,
-    data: data || [],
+    data: data ?? [],
     meta: {
       page,
       limit,
-      total: count || 0,
-      totalPages: Math.ceil((count || 0) / limit),
-      unreadCount: unreadCount || 0,
+      total: count ?? 0,
+      totalPages: Math.ceil((count ?? 0) / limit),
+      unreadCount: unreadCount ?? 0,
     },
   });
 }
@@ -70,22 +71,23 @@ export async function PUT(request: Request) {
     body = await request.json();
   } catch {
     return NextResponse.json(
-      { success: false, error: { code: 'VALIDATION_ERROR', message: 'Invalid request body' } },
+      { success: false, error: { code: "VALIDATION_ERROR", message: "Invalid request body" } },
       { status: 400 },
     );
   }
 
+  const now = new Date().toISOString();
+
   if (body.markAllRead) {
-    // Mark all as read
     const { error } = await auth.supabase
-      .from('notifications')
-      .update({ is_read: true, read_at: new Date().toISOString() })
-      .eq('user_id', auth.user.id)
-      .eq('is_read', false);
+      .from("notifications")
+      .update({ read_at: now })
+      .eq("profile_id", auth.user.id)
+      .is("read_at", null);
 
     if (error) {
       return NextResponse.json(
-        { success: false, error: { code: 'SERVER_ERROR', message: error.message } },
+        { success: false, error: { code: "SERVER_ERROR", message: error.message } },
         { status: 500 },
       );
     }
@@ -94,16 +96,15 @@ export async function PUT(request: Request) {
   }
 
   if (body.ids && body.ids.length > 0) {
-    // Mark specific notifications as read
     const { error } = await auth.supabase
-      .from('notifications')
-      .update({ is_read: true, read_at: new Date().toISOString() })
-      .eq('user_id', auth.user.id)
-      .in('id', body.ids);
+      .from("notifications")
+      .update({ read_at: now })
+      .eq("profile_id", auth.user.id)
+      .in("id", body.ids);
 
     if (error) {
       return NextResponse.json(
-        { success: false, error: { code: 'SERVER_ERROR', message: error.message } },
+        { success: false, error: { code: "SERVER_ERROR", message: error.message } },
         { status: 500 },
       );
     }
@@ -112,7 +113,7 @@ export async function PUT(request: Request) {
   }
 
   return NextResponse.json(
-    { success: false, error: { code: 'VALIDATION_ERROR', message: 'Provide ids or markAllRead' } },
+    { success: false, error: { code: "VALIDATION_ERROR", message: "Provide ids or markAllRead" } },
     { status: 400 },
   );
 }
