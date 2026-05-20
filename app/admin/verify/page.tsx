@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/components/auth/AuthProvider';
+import { canRequestAdminOtp } from '@/lib/auth/rbac';
 
 export default function AdminVerifyPage() {
   return (
@@ -67,7 +68,7 @@ function AdminVerifyForm() {
     }
   }, [authLoading, isAuthenticated, redirectPath, router]);
 
-  const isAdmin = role === 'admin' || role === 'super_admin';
+  const isAdmin = canRequestAdminOtp(role ?? '');
 
   // ── Send OTP ──
   const handleSendOtp = useCallback(async () => {
