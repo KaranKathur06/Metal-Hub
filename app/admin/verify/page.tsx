@@ -39,6 +39,7 @@ function AdminVerifyForm() {
   const [cooldown, setCooldown] = useState(0);
   const [expiresIn, setExpiresIn] = useState(0);
   const [remainingAttempts, setRemainingAttempts] = useState(5);
+  const [deliveryNotice, setDeliveryNotice] = useState<string | null>(null);
   const otpInputRef = useRef<HTMLInputElement>(null);
 
   const redirectPath = searchParams.get('redirect') || '/admin';
@@ -96,6 +97,16 @@ function AdminVerifyForm() {
       setCooldown(60);
       setStep('verify');
       setOtp('');
+
+      if (data.deliveryMode === 'console' || data.emailDelivered === false) {
+        setDeliveryNotice(
+          'No email was sent from the server. Add RESEND_API_KEY in Vercel environment variables, verify your domain in Resend, then redeploy. Until then, check Vercel → Deployments → Functions logs for "ADMIN 2FA" or your verification code.',
+        );
+      } else {
+        setDeliveryNotice(
+          'Check your inbox and spam/promotions folders. The subject line includes your 6-digit code.',
+        );
+      }
 
       // Auto-focus OTP input
       setTimeout(() => otpInputRef.current?.focus(), 100);
@@ -248,17 +259,38 @@ function AdminVerifyForm() {
           {/* ── Step 2: Enter OTP ── */}
           {step === 'verify' && (
             <form onSubmit={handleVerifyOtp} className="space-y-4">
-              <div className="rounded-xl bg-emerald-50/50 p-4">
+              <div
+                className={cn(
+                  'rounded-xl p-4',
+                  deliveryNotice?.includes('No email was sent')
+                    ? 'border border-amber-200 bg-amber-50'
+                    : 'bg-emerald-50/50',
+                )}
+              >
                 <div className="flex items-start gap-3">
-                  <ShieldCheck className="mt-0.5 h-5 w-5 text-emerald-600" />
+                  <ShieldCheck
+                    className={cn(
+                      'mt-0.5 h-5 w-5',
+                      deliveryNotice?.includes('No email was sent')
+                        ? 'text-amber-600'
+                        : 'text-emerald-600',
+                    )}
+                  />
                   <div>
                     <p className="text-sm font-semibold text-slate-900">
-                      Code Sent
+                      {deliveryNotice?.includes('No email was sent')
+                        ? 'Code generated (email not configured)'
+                        : 'Code sent'}
                     </p>
                     <p className="mt-0.5 text-xs text-slate-500">
-                      Enter the 6-digit code sent to{' '}
+                      Enter the 6-digit code for{' '}
                       <span className="font-semibold text-slate-700">{maskedEmail}</span>
                     </p>
+                    {deliveryNotice ? (
+                      <p className="mt-2 text-xs leading-relaxed text-slate-600">
+                        {deliveryNotice}
+                      </p>
+                    ) : null}
                   </div>
                 </div>
               </div>

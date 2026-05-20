@@ -9,13 +9,15 @@ import { canRequestAdminOtp, resolveEffectiveRole } from "@/lib/auth/rbac";
 import { authLog } from "@/lib/auth/auth-logger";
 import { checkRateLimit, RATE_LIMITS } from "@/lib/auth/rate-limiter";
 import { generateOTP, hashOTP, getOTPExpiry } from "@/lib/auth/otp";
+import { sendEmail, otpEmailTemplate } from "@/lib/services/email";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 const RESEND_COOLDOWN_SECONDS = 60;
-const OTP_EXPIRY_MINUTES = 5;
+const OTP_EXPIRY_MINUTES = parseInt(process.env.OTP_EXPIRY_MINUTES || "5", 10);
+const HAS_RESEND = Boolean(process.env.RESEND_API_KEY);
 
 function getClientIp(req: NextRequest): string {
   return (
@@ -31,16 +33,6 @@ function maskEmail(email: string): string {
   const masked =
     local.length <= 3 ? `${local[0]}***` : `${local.slice(0, 2)}***${local.slice(-1)}`;
   return `${masked}@${domain}`;
-}
-
-async function sendOtpEmail(email: string, otp: string): Promise<boolean> {
-  console.log(`\n══════════════════════════════════════════`);
-  console.log(`  ADMIN 2FA VERIFICATION CODE`);
-  console.log(`  Email: ${email}`);
-  console.log(`  Code:  ${otp}`);
-  console.log(`  Expires in: ${OTP_EXPIRY_MINUTES} minutes`);
-  console.log(`══════════════════════════════════════════\n`);
-  return true;
 }
 
 async function logAuditEvent(
@@ -197,12 +189,46 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    await sendOtpEmail(user.email, otp);
+    const template = otpEmailTemplate(otp, OTP_EXPIRY_MINUTES);
+    const emailResult = await sendEmail({
+      to: user.email,
+      subject: template.subject,
+      html: template.html,
+      text: template.text,
+    });
+
+    const deliveryMode = HAS_RESEND ? "resend" : "console";
+
+    if (HAS_RESEND && !emailResult.success) {
+      console.error("[Admin OTP] Email delivery failed:", emailResult.error);
+      await logAuditEvent(db, {
+        userId: user.id,
+        action: "ADMIN_OTP_EMAIL_FAILED",
+        details: { email: user.email, error: emailResult.error },
+        ip: getClientIp(req),
+        userAgent: req.headers.get("user-agent") || undefined,
+        severity: "warning",
+      });
+
+      return NextResponse.json(
+        {
+          error:
+            "Could not send verification email. Check that your Resend domain is verified and RESEND_API_KEY is valid.",
+          details: process.env.NODE_ENV === "development" ? emailResult.error : undefined,
+        },
+        { status: 502 },
+      );
+    }
 
     await logAuditEvent(db, {
       userId: user.id,
       action: "ADMIN_OTP_SENT",
-      details: { email: user.email },
+      details: {
+        email: user.email,
+        emailDelivered: emailResult.success,
+        deliveryMode,
+        messageId: emailResult.messageId,
+      },
       ip: getClientIp(req),
       userAgent: req.headers.get("user-agent") || undefined,
       severity: "info",
@@ -210,9 +236,13 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: "Verification code sent to your email",
+      message: emailResult.success
+        ? "Verification code sent to your email"
+        : "Code generated — email provider not configured on server",
       expiresIn: OTP_EXPIRY_MINUTES * 60,
       email: maskEmail(user.email),
+      emailDelivered: HAS_RESEND && emailResult.success,
+      deliveryMode,
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Unknown error";
